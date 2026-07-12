@@ -13,6 +13,32 @@ class HealthMonitor:
         self.initial_weights = {}
         self._capture_initial_weights()
         
+        self._capture_initial_weights()
+        
+        self.activation_means = []
+        self.activation_stds = []
+        self.dead_activations_count = 0
+        self.total_activations = 0
+        self.hooks = []
+        self._register_hooks()
+        
+    def _register_hooks(self):
+        def hook_fn(module, input, output):
+            if isinstance(output, torch.Tensor) and output.requires_grad:
+                out = output.detach()
+                self.activation_means.append(out.mean().item())
+                self.activation_stds.append(out.std().item())
+                
+                # Check for dead activations (exactly 0, commonly after ReLU)
+                dead = (out == 0).sum().item()
+                self.dead_activations_count += dead
+                self.total_activations += out.numel()
+
+        # Only hook convolution or linear layers to keep overhead low
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.Conv3d, nn.Linear, nn.ReLU, nn.GELU)):
+                self.hooks.append(module.register_forward_hook(hook_fn))
+                
     def _capture_initial_weights(self):
         for name, param in self.model.named_parameters():
             if param.requires_grad:
@@ -24,6 +50,8 @@ class HealthMonitor:
         # 1. Gradient Statistics
         grad_max, grad_min, grad_mean = -float('inf'), float('inf'), []
         total_norm = 0.0
+        dead_gradients = 0
+        total_params = 0
         
         # 2. Weight Statistics
         weight_means, weight_stds = [], []
@@ -38,6 +66,9 @@ class HealthMonitor:
                     grad_min = min(grad_min, g.min().item())
                     grad_mean.append(g.mean().item())
                     total_norm += g.norm(2).item() ** 2
+                    if g.abs().max().item() < 1e-8:
+                        dead_gradients += 1
+                    total_params += 1
                     
                 # Weights
                 w = param.detach().cpu()
@@ -58,12 +89,17 @@ class HealthMonitor:
         stats["weight_std"] = float(np.mean(weight_stds)) if weight_stds else 0.0
         stats["weight_drift"] = float(np.mean(weight_drift)) if weight_drift else 0.0
         
-        # Note: Activation tracking requires forward hooks. To keep training overhead low,
-        # we can compute activation stats during validation or sample them optionally.
-        # For Phase 7, we'll return 0 for activations unless hooks are registered,
-        # but the spec asks for mean, std, dead activations. We will add a simple hook manager later if needed.
-        stats["activation_mean"] = 0.0
-        stats["activation_std"] = 0.0
-        stats["dead_activations"] = 0.0
+        stats["dead_gradients_ratio"] = float(dead_gradients / total_params) if total_params > 0 else 0.0
+        
+        # Activations
+        stats["activation_mean"] = float(np.mean(self.activation_means)) if self.activation_means else 0.0
+        stats["activation_std"] = float(np.mean(self.activation_stds)) if self.activation_stds else 0.0
+        stats["dead_activations_ratio"] = float(self.dead_activations_count / self.total_activations) if self.total_activations > 0 else 0.0
+        
+        # Reset activation trackers for the next epoch to avoid accumulating across the entire training run
+        self.activation_means = []
+        self.activation_stds = []
+        self.dead_activations_count = 0
+        self.total_activations = 0
         
         return stats

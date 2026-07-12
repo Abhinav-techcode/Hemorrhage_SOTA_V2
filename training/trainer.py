@@ -25,6 +25,7 @@ from training.callbacks import TrainerCallback, ProgressBar, EarlyStopping
 from evaluation.metric_engine import ResearchMetricEngine
 from training.health_monitor import HealthMonitor
 from training.research_callbacks import ResearchFrameworkCallback
+from evaluation.visualize import Visualizer
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +81,13 @@ class SegmentationTrainer:
             torch.backends.cudnn.allow_tf32 = True
 
         self.current_epoch = 1
-        self.best_val_loss = float("inf")
+        
+        # Configurable best metric selection
+        self.best_metric_name = getattr(self.config, "best_metric", "val_dice")
+        self.best_metric_mode = getattr(self.config, "best_metric_mode", "max")
+        
+        self.best_metric_value = -float("inf") if self.best_metric_mode == "max" else float("inf")
+        
         self.epochs_without_improvement = 0
         self.should_stop = False
 
@@ -147,7 +154,11 @@ class SegmentationTrainer:
         self.metric_manager.update(outputs, masks)
 
         if batch_idx == 0:
-            Visualizer.log_multi_plane(self.exp_logger.writer, "Val/Predictions", images, outputs, masks, self.current_epoch)
+            self._vis_batch = (
+                images.detach().cpu(), 
+                {k: v.detach().cpu() for k, v in outputs.items()} if isinstance(outputs, dict) else outputs.detach().cpu(),
+                masks.detach().cpu()
+            )
 
         return loss_dict["total"].item()
 
@@ -156,7 +167,7 @@ class SegmentationTrainer:
             "epoch": self.current_epoch,
             "model_state": self.model.state_dict(),
             "optimizer_state": self.optimizer.state_dict(),
-            "best_val_loss": self.best_val_loss
+            "best_metric_value": self.best_metric_value
         }
         if self.scheduler: state["scheduler"] = self.scheduler.state_dict()
         if self.scaler: state["scaler"] = self.scaler.state_dict()
@@ -167,7 +178,7 @@ class SegmentationTrainer:
         self.model.load_state_dict(ckpt["model_state"])
         self.optimizer.load_state_dict(ckpt["optimizer_state"])
         self.current_epoch = ckpt["epoch"] + 1
-        self.best_val_loss = ckpt["best_val_loss"]
+        self.best_metric_value = ckpt.get("best_metric_value", -float("inf") if self.best_metric_mode == "max" else float("inf"))
         if self.scheduler and "scheduler" in ckpt: self.scheduler.load_state_dict(ckpt["scheduler"])
         if self.scaler and "scaler" in ckpt: self.scaler.load_state_dict(ckpt["scaler"])
         logger.info(f"Resumed training from epoch {self.current_epoch}.")
@@ -218,15 +229,37 @@ class SegmentationTrainer:
                     self.scheduler.step(avg_val_loss) if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau) else self.scheduler.step()
 
                 # CHECKPOINTS & EARLY STOPPING
-                is_best = avg_val_loss < self.best_val_loss
+                current_metric = log_dict.get(self.best_metric_name, avg_val_loss)
+                
+                if self.best_metric_mode == "max":
+                    is_best = current_metric > self.best_metric_value
+                else:
+                    is_best = current_metric < self.best_metric_value
+                    
                 if is_best:
-                    self.best_val_loss = avg_val_loss
+                    self.best_metric_value = current_metric
                     self.epochs_without_improvement = 0
                     self.ckpt_manager.save("best_model.pt", self._create_state())
                 else:
                     self.epochs_without_improvement += 1
 
                 self.ckpt_manager.save("latest_checkpoint.pt", self._create_state())
+                
+                # VISUALIZATION (Epoch 1, Best, or Last)
+                is_last = (epoch == self.config.epochs)
+                if epoch == 1 or is_best or is_last:
+                    if hasattr(self, '_vis_batch'):
+                        v_imgs, v_outs, v_masks = self._vis_batch
+                        try:
+                            Visualizer.log_multi_plane(
+                                self.exp_logger.writer, 
+                                "Val/Predictions", 
+                                v_imgs, v_outs, v_masks, 
+                                self.current_epoch,
+                                is_best=is_best
+                            )
+                        except Exception as e:
+                            logger.warning(f"Visualization skipped: {e}")
                 
                 if self.should_stop:
                     logger.info("Early stopping triggered.")

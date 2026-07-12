@@ -17,20 +17,20 @@ class ResearchMetricEngine:
     def __init__(self, device: str = "cpu"):
         self.device = device
         # Overlap Metrics
-        self.dice = DiceMetric(include_background=False, reduction="mean")
-        self.iou = MeanIoU(include_background=False, reduction="mean")
+        self.dice = DiceMetric(include_background=True, reduction="mean")
+        self.iou = MeanIoU(include_background=True, reduction="mean")
         # We can implement Tversky and F-beta manually or through confusion matrix.
         
         # Classification (Voxel-wise)
         self.conf_matrix = ConfusionMatrixMetric(
-            include_background=False, 
+            include_background=True, 
             metric_name=["accuracy", "precision", "recall", "specificity", "f1_score", "sensitivity"],
             reduction="mean"
         )
         
         # Medical Segmentation
-        self.hd95 = HausdorffDistanceMetric(include_background=False, percentile=95.0, reduction="mean")
-        self.asd = SurfaceDistanceMetric(include_background=False, reduction="mean")
+        self.hd95 = HausdorffDistanceMetric(include_background=True, percentile=95.0, reduction="mean")
+        self.asd = SurfaceDistanceMetric(include_background=True, reduction="mean")
         
         # Post-processing
         self.post_pred = Compose([Activations(sigmoid=True), AsDiscrete(threshold=0.5)])
@@ -57,6 +57,16 @@ class ResearchMetricEngine:
         self.lesion_volumes = []
         self.foreground_ratios = []
         
+        # Phase 2 manual stats accumulators
+        self.tp = 0
+        self.fp = 0
+        self.fn = 0
+        self.tn = 0
+        self.v_pred_list = []
+        self.v_gt_list = []
+        self.ece_confidences = []
+        self.ece_accuracies = []
+        
     def _extract_highest_res(self, preds: Any) -> torch.Tensor:
         if isinstance(preds, dict):
             return preds.get("full", list(preds.values())[-1])
@@ -72,9 +82,14 @@ class ResearchMetricEngine:
         # Probabilities
         probs = torch.sigmoid(y_pred)
         
+        from evaluation.validator import ResearchValidator
+        ResearchValidator.validate_probabilities(probs)
+        
         # Post-process (Binarize)
         y_pred_bin = [self.post_pred(p) for p in y_pred]
         y_bin = [self.post_label(l) for l in y]
+        
+        ResearchValidator.validate_predictions(torch.stack(y_pred_bin))
         
         if mode == "val":
             # Update MONAI metrics
@@ -95,6 +110,8 @@ class ResearchMetricEngine:
                 
                 # Stats
                 fg_voxels = mask.sum().item()
+                pred_voxels = pred.sum().item()
+                
                 if fg_voxels > 0:
                     self.positive_volumes += 1
                     self.lesion_volumes.append(fg_voxels)
@@ -103,6 +120,25 @@ class ResearchMetricEngine:
                     
                 total_voxels = mask.numel()
                 self.foreground_ratios.append(fg_voxels / total_voxels if total_voxels > 0 else 0)
+                
+                # Base counts for derived metrics
+                tp = (pred * mask).sum().item()
+                fp = (pred * (1 - mask)).sum().item()
+                fn = ((1 - pred) * mask).sum().item()
+                tn = ((1 - pred) * (1 - mask)).sum().item()
+                
+                self.tp += tp
+                self.fp += fp
+                self.fn += fn
+                self.tn += tn
+                self.v_pred_list.append(pred_voxels)
+                self.v_gt_list.append(fg_voxels)
+                
+                # Expected Calibration Error (ECE) components (10 bins)
+                bin_idx = min(int(prob.mean().item() * 10), 9)
+                batch_acc = 1.0 if (tp + tn) / total_voxels > 0.5 else 0.0 # voxel-wise proxy
+                self.ece_confidences.append((bin_idx, prob.mean().item()))
+                self.ece_accuracies.append((bin_idx, batch_acc))
                 
                 # Calibration
                 self.prediction_confidences.append(prob.mean().item())
@@ -146,6 +182,37 @@ class ResearchMetricEngine:
             metrics["val_specificity"] = conf_res[3]
             metrics["val_f1_score"] = conf_res[4]
             metrics["val_sensitivity"] = conf_res[5]
+            
+        # Custom derived classification metrics (Phase 2)
+        alpha, beta = 0.3, 0.7
+        metrics["val_tversky"] = self.tp / (self.tp + alpha * self.fp + beta * self.fn) if (self.tp + self.fp + self.fn) > 0 else 0.0
+        
+        vs_list = []
+        rvd_list = []
+        for vp, vg in zip(self.v_pred_list, self.v_gt_list):
+            if vp + vg > 0:
+                vs_list.append(1 - abs(vp - vg) / (vp + vg))
+            if vg > 0:
+                rvd_list.append((vp - vg) / vg * 100.0)
+                
+        metrics["val_volumetric_similarity"] = np.mean(vs_list) if vs_list else 0.0
+        metrics["val_relative_volume_difference"] = np.mean(rvd_list) if rvd_list else 0.0
+        
+        # Calculate ECE
+        ece = 0.0
+        if self.ece_confidences:
+            bins = {i: {"conf": [], "acc": []} for i in range(10)}
+            for (b_i, conf), (_, acc) in zip(self.ece_confidences, self.ece_accuracies):
+                bins[b_i]["conf"].append(conf)
+                bins[b_i]["acc"].append(acc)
+            n_total = len(self.ece_confidences)
+            for i in range(10):
+                if bins[i]["conf"]:
+                    bin_conf = np.mean(bins[i]["conf"])
+                    bin_acc = np.mean(bins[i]["acc"])
+                    bin_weight = len(bins[i]["conf"]) / n_total
+                    ece += bin_weight * abs(bin_acc - bin_conf)
+        metrics["val_expected_calibration_error"] = ece
             
         # Validation Distances
         metrics["val_hd95"] = self._safe_agg(self.hd95)

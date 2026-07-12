@@ -39,6 +39,8 @@ class PredictionAnalyzer:
         fg_percentages = []
         lesion_counts = []
         avg_lesion_sizes = []
+        largest_lesions = []
+        smallest_lesions = []
         
         for b in range(B):
             pred_vol = p_b[b].squeeze() # [D, H, W]
@@ -47,27 +49,30 @@ class PredictionAnalyzer:
             total_voxels = pred_vol.numel()
             fg_percentages.append(fg_voxels / total_voxels if total_voxels > 0 else 0)
             
-            # Simple connected components using PyTorch (if available) or NumPy/SciPy
-            # Since MONAI / PyTorch doesn't have a built-in 3D CC without scipy, 
-            # we approximate lesion count by non-zero elements or just use SciPy if we want exact counts.
-            # For performance and to keep it PyTorch native, we'll skip rigorous 3D CC here
-            # and just report the total foreground as 1 'lesion' if not using SciPy.
-            
             try:
                 from scipy.ndimage import label
                 labeled_array, num_features = label(pred_vol.cpu().numpy())
                 lesion_counts.append(num_features)
                 if num_features > 0:
-                    avg_lesion_sizes.append(fg_voxels / num_features)
+                    component_sizes = [np.sum(labeled_array == i) for i in range(1, num_features + 1)]
+                    avg_lesion_sizes.append(np.mean(component_sizes))
+                    largest_lesions.append(np.max(component_sizes))
+                    smallest_lesions.append(np.min(component_sizes))
                 else:
                     avg_lesion_sizes.append(0)
+                    largest_lesions.append(0)
+                    smallest_lesions.append(0)
             except ImportError:
                 # Fallback
                 lesion_counts.append(1 if fg_voxels > 0 else 0)
                 avg_lesion_sizes.append(fg_voxels)
+                largest_lesions.append(fg_voxels)
+                smallest_lesions.append(fg_voxels)
                 
         stats["pred_foreground_percentage"] = float(np.mean(fg_percentages) * 100)
         stats["pred_lesion_count"] = float(np.mean(lesion_counts))
         stats["pred_avg_lesion_size"] = float(np.mean(avg_lesion_sizes))
+        stats["pred_largest_lesion"] = float(np.mean(largest_lesions))
+        stats["pred_smallest_lesion"] = float(np.mean(smallest_lesions))
         
         return stats

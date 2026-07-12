@@ -524,7 +524,7 @@ class BrainHemorrhageDataset(Dataset):
                 f"{self._case_context(filename)}: shape mismatch image {image_shape} vs mask {mask_arr.shape[1:]}"
             )
         if mask_arr.sum() == 0:
-            self.logger.warning("%s: mask is empty (no foreground).", self._case_context(filename))
+            self.logger.debug("%s: mask is empty (no foreground).", self._case_context(filename))
         return mask_arr
 
     # ------------------------------------------------------------------
