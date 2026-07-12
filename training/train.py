@@ -245,8 +245,8 @@ def build_parser():
 
     parser.add_argument(
         "--device",
-        default="cuda",
-        choices=["cuda", "cpu"],
+        default="cuda" if torch.cuda.is_available() else "cpu",
+        choices=["cuda", "cpu", "mps"],
     )
 
     parser.add_argument(

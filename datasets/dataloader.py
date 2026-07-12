@@ -55,21 +55,22 @@ class DataLoaderConfig:
 # ===========================================================================
 # Utilities & Custom Collate
 # ===========================================================================
+import functools
+
+def _worker_init_fn(worker_id: int, base_seed: int) -> None:
+    import random
+    import numpy as np
+    import torch
+    # Offset seed by global rank to prevent identical augmentations across GPUs
+    rank = torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
+    seed = base_seed + worker_id + rank
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
 def get_worker_init_fn(base_seed: int) -> Callable[[int], None]:
     """Ensures deterministic random states per worker, essential for DDP/Multi-GPU."""
-    
-    #import monai
-    #monai.utils.set_determinism(seed=seed)
-    def worker_init_fn(worker_id: int) -> None:
-        import random
-        import numpy as np
-        # Offset seed by global rank to prevent identical augmentations across GPUs
-        rank = torch.distributed.get_rank() if torch.distributed.is_initialized() else 0
-        seed = base_seed + worker_id + rank
-        random.seed(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-    return worker_init_fn
+    return functools.partial(_worker_init_fn, base_seed=base_seed)
 
 
 def safe_collate(batch: List[Dict[str, Any]]) -> Dict[str, Any]:
