@@ -18,12 +18,13 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from training.validator import Validator
+from evaluation.validator import ResearchValidator as Validator
 from training.checkpoint_manager import CheckpointManager
 from training.logger import ExperimentLogger
 from training.callbacks import TrainerCallback, ProgressBar, EarlyStopping
-from evaluation.metrics import MetricManager
-from evaluation.visualize import Visualizer
+from evaluation.metric_engine import ResearchMetricEngine
+from training.health_monitor import HealthMonitor
+from training.research_callbacks import ResearchFrameworkCallback
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +37,7 @@ class SegmentationTrainer:
         train_loader: DataLoader,
         val_loader: DataLoader,
         config: Any, 
-        metric_manager: MetricManager,
+        metric_manager: ResearchMetricEngine,
         scheduler: Optional[torch.optim.lr_scheduler.LRScheduler] = None,
         device: str = "cuda" if torch.cuda.is_available() else "cpu"
     ):
@@ -58,7 +59,12 @@ class SegmentationTrainer:
         self.scheduler = scheduler
         self.metric_manager = metric_manager
         
-        self.callbacks: list[TrainerCallback] = [ProgressBar(), EarlyStopping()]
+        self.health_monitor = HealthMonitor(self.model)
+        self.callbacks: list[TrainerCallback] = [
+            ProgressBar(), 
+            EarlyStopping(),
+            ResearchFrameworkCallback(self.metric_manager, self.health_monitor, self.config)
+        ]
         
         save_dir = Path(config.save_dir)
         self.ckpt_manager = CheckpointManager(save_dir)
@@ -86,16 +92,18 @@ class SegmentationTrainer:
         images = batch["image"].to(self.device, non_blocking=True, memory_format=mem_format)
         masks = batch["mask"].to(self.device, non_blocking=True)
         
-        Validator.validate_batch(images, masks)
+        Validator.validate_input(images, masks)
 
         try:
             amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
             with amp_ctx:
                 outputs = self.model(images)
+                Validator.validate_model_output(outputs, masks)
                 loss_dict = self.loss_fn(outputs, masks)
                 loss = loss_dict["total"] / self.config.grad_accum_steps
 
             Validator.validate_loss(loss)
+            self.metric_manager.update_loss(loss_dict, mode="train")
 
             if self.scaler:
                 self.scaler.scale(loss).backward()
@@ -126,12 +134,16 @@ class SegmentationTrainer:
     def _val_step(self, batch: dict, batch_idx: int) -> float:
         images = batch["image"].to(self.device, non_blocking=True)
         masks = batch["mask"].to(self.device, non_blocking=True)
+        Validator.validate_input(images, masks)
         
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
         with amp_ctx:
             outputs = self.model(images)
+            Validator.validate_model_output(outputs, masks)
             loss_dict = self.loss_fn(outputs, masks)
+            Validator.validate_loss(loss_dict["total"])
             
+        self.metric_manager.update_loss(loss_dict, mode="val")
         self.metric_manager.update(outputs, masks)
 
         if batch_idx == 0:

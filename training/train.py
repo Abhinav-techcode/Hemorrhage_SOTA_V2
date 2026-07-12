@@ -55,7 +55,7 @@ from datasets.dataloader import (
 from datasets.transforms import TransformFactory
 
 from evaluation.losses import LossFactory
-from evaluation.metrics import MetricManager
+from evaluation.metric_engine import ResearchMetricEngine
 
 from training.optimizer import OptimizerFactory
 from training.scheduler import (
@@ -426,9 +426,7 @@ def build_framework(configs):
 
     LOGGER.info("Building Metric Engine")
 
-    metric_manager = MetricManager(
-        configs["metrics"]["metrics"]
-    )
+    metric_manager = ResearchMetricEngine()
 
     # ------------------------------------------------------
     # Optimizer
