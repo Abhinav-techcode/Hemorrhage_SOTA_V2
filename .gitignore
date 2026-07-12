@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# TensorBoard
+runs/
+
+# Logs
+logs/
+*.log
+
+# Checkpoints
+checkpoints/
+*.pt
+*.pth
+
+# Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+dataset/
+processed/
+dataset_fixed/
+

@@ -1,0 +1,593 @@
+"""
+training/train.py
+
+Research-Grade Training Launcher
+================================
+
+HybridMedNeXt++ Framework
+
+Responsibilities
+----------------
+1. Parse command-line arguments.
+2. Configure runtime environment.
+3. Load and validate configuration files.
+4. Build all framework components.
+5. Launch SegmentationTrainer.
+
+No training logic should be implemented here.
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import platform
+import random
+import sys
+from pathlib import Path
+from typing import Any, Dict
+
+import numpy as np
+import torch
+import yaml
+
+# ==========================================================
+# Project Root
+# ==========================================================
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+# ==========================================================
+# Framework Imports
+# ==========================================================
+
+from models.model_factory import build_model
+
+from datasets.dataloader import (
+    BrainHemorrhageDataModule,
+    DataLoaderConfig,
+)
+
+from datasets.transforms import TransformFactory
+
+from evaluation.losses import LossFactory
+from evaluation.metrics import MetricManager
+
+from training.optimizer import OptimizerFactory
+from training.scheduler import (
+    SchedulerFactory,
+    scheduler_step,
+)
+
+from training.trainer import SegmentationTrainer
+from training.config import TrainerConfig
+
+# ==========================================================
+# Logger
+# ==========================================================
+
+LOGGER = logging.getLogger("HybridMedNeXt++")
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)-8s | %(message)s",
+    datefmt="%H:%M:%S",
+)
+
+# ==========================================================
+# YAML Loader
+# ==========================================================
+
+def load_yaml(path: Path) -> Dict[str, Any]:
+    """
+    Safely load YAML configuration.
+    """
+
+    if not path.exists():
+        raise FileNotFoundError(path)
+
+    with open(path, "r") as f:
+        cfg = yaml.safe_load(f)
+
+    return cfg if cfg is not None else {}
+
+
+# ==========================================================
+# Random Seed
+# ==========================================================
+
+def seed_everything(seed: int):
+
+    random.seed(seed)
+
+    np.random.seed(seed)
+
+    torch.manual_seed(seed)
+
+    torch.cuda.manual_seed(seed)
+
+    torch.cuda.manual_seed_all(seed)
+
+    os.environ["PYTHONHASHSEED"] = str(seed)
+
+    torch.backends.cudnn.benchmark = True
+
+    torch.backends.cudnn.deterministic = False
+
+
+# ==========================================================
+# CUDA Optimisation
+# ==========================================================
+
+def configure_cuda():
+
+    if not torch.cuda.is_available():
+        return
+
+    torch.backends.cuda.matmul.allow_tf32 = True
+
+    torch.backends.cudnn.allow_tf32 = True
+
+    torch.backends.cudnn.benchmark = True
+
+    torch.set_float32_matmul_precision("high")
+
+
+# ==========================================================
+# Environment Summary
+# ==========================================================
+
+def print_environment():
+
+    print()
+
+    print("=" * 80)
+    print("HybridMedNeXt++ Research Framework")
+    print("=" * 80)
+
+    print(f"Python Version : {platform.python_version()}")
+
+    print(f"PyTorch        : {torch.__version__}")
+
+    print(f"CUDA Available : {torch.cuda.is_available()}")
+
+    if torch.cuda.is_available():
+
+        props = torch.cuda.get_device_properties(0)
+
+        print(f"GPU            : {props.name}")
+
+        print(
+            f"GPU Memory     : "
+            f"{props.total_memory / 1024**3:.2f} GB"
+        )
+
+        print(f"CUDA Version   : {torch.version.cuda}")
+
+        print(
+            f"cuDNN          : "
+            f"{torch.backends.cudnn.version()}"
+        )
+
+        print(
+            f"BF16 Support   : "
+            f"{torch.cuda.is_bf16_supported()}"
+        )
+
+        print(
+            f"TF32 Enabled   : "
+            f"{torch.backends.cuda.matmul.allow_tf32}"
+        )
+
+    print("=" * 80)
+    print()
+
+
+# ==========================================================
+# Parameter Counter
+# ==========================================================
+
+def print_model_summary(model):
+
+    total = sum(
+        p.numel()
+        for p in model.parameters()
+    )
+
+    trainable = sum(
+        p.numel()
+        for p in model.parameters()
+        if p.requires_grad
+    )
+
+    LOGGER.info(
+        "Total Parameters     : %s",
+        f"{total:,}",
+    )
+
+    LOGGER.info(
+        "Trainable Parameters : %s",
+        f"{trainable:,}",
+    )
+
+
+# ==========================================================
+# Command Line
+# ==========================================================
+
+def build_parser():
+
+    parser = argparse.ArgumentParser(
+        description="HybridMedNeXt++ Training"
+    )
+
+    parser.add_argument(
+        "--config_dir",
+        default="configs",
+        type=str,
+    )
+
+    parser.add_argument(
+        "--resume",
+        default=None,
+        type=str,
+    )
+
+    parser.add_argument(
+        "--seed",
+        default=42,
+        type=int,
+    )
+
+    parser.add_argument(
+        "--device",
+        default="cuda",
+        choices=["cuda", "cpu"],
+    )
+
+    parser.add_argument(
+        "--experiment",
+        default="Hemorrhage_SOTA",
+        type=str,
+    )
+
+    return parser
+
+# ==========================================================
+# Configuration Loader
+# ==========================================================
+
+def load_all_configs(config_dir: Path) -> Dict[str, Dict[str, Any]]:
+    """
+    Load every YAML configuration file required by the framework.
+    """
+
+    LOGGER.info("Loading configuration files...")
+
+    configs = {
+        "dataset": load_yaml(config_dir / "dataset.yaml"),
+
+        "model": load_yaml(config_dir / "model.yaml"),
+
+        "training": load_yaml(config_dir / "training.yaml"),
+
+        "optimizer": load_yaml(config_dir / "optimizer.yaml"),
+
+        "scheduler": load_yaml(config_dir / "scheduler.yaml"),
+
+        "loss": load_yaml(config_dir / "loss.yaml"),
+
+        "metrics": load_yaml(config_dir / "metrics.yaml"),
+
+        "augmentation": load_yaml(config_dir / "augmentation.yaml"),
+
+        "preprocessing": load_yaml(config_dir / "preprocessing.yaml"),
+
+    }
+
+    LOGGER.info("Configuration loading completed.")
+
+    return configs
+
+
+# ==========================================================
+# Build Trainer Configuration
+# ==========================================================
+
+def build_trainer_config(cfg: Dict[str, Any]) -> TrainerConfig:
+
+    return TrainerConfig(
+
+        epochs=cfg.get("epochs", 250),
+
+        batch_size=cfg.get("batch_size", 2),
+
+        grad_accum_steps=cfg.get("grad_accum_steps", 1),
+
+        max_grad_norm=cfg.get("max_grad_norm", 1.0),
+
+        mixed_precision=cfg.get("mixed_precision", True),
+
+        amp_dtype=cfg.get("amp_dtype", "bfloat16"),
+
+        compile_model=cfg.get("compile_model", True),
+
+        channels_last=cfg.get("channels_last", True),
+
+        log_freq=cfg.get("log_freq", 10),
+
+        save_dir=cfg.get("save_dir", "checkpoints"),
+
+        patience=cfg.get("patience", 30),
+
+        enable_profiler=cfg.get("enable_profiler", False),
+
+        ema_enabled=cfg.get("ema_enabled", False),
+
+        swa_enabled=cfg.get("swa_enabled", False),
+
+    )
+
+
+# ==========================================================
+# Build Entire Framework
+# ==========================================================
+
+def build_framework(configs):
+
+    LOGGER.info("=" * 80)
+    LOGGER.info("Building Framework")
+    LOGGER.info("=" * 80)
+
+    # ------------------------------------------------------
+    # Model
+    # ------------------------------------------------------
+
+    LOGGER.info("Building HybridMedNeXt++")
+
+    model = build_model(configs["model"])
+
+    print_model_summary(model)
+
+    # ------------------------------------------------------
+    # Transform Factory
+    # ------------------------------------------------------
+
+    LOGGER.info("Building MONAI Transform Pipelines")
+
+    transform_factory = TransformFactory(
+        "configs/augmentation.yaml"
+    )
+
+    # ------------------------------------------------------
+    # DataLoader
+    # ------------------------------------------------------
+
+    LOGGER.info("Building DataModule")
+
+    loader_cfg = DataLoaderConfig(
+
+        batch_size=configs["training"].get(
+            "batch_size",
+            2,
+        ),
+
+        num_workers=configs["training"].get(
+            "num_workers",
+            min(os.cpu_count(), 8),
+        ),
+
+        pin_memory=True,
+
+        persistent_workers=True,
+
+        prefetch_factor=2,
+
+        drop_last=True,
+
+        seed=configs["training"].get(
+            "seed",
+            42,
+        ),
+
+        dataset_config=configs["dataset"],
+
+    )
+
+    data_module = BrainHemorrhageDataModule(
+
+        config=loader_cfg,
+
+        transform_factory=transform_factory,
+
+    )
+
+    train_loader = data_module.build_train_loader()
+
+    val_loader = data_module.build_validation_loader()
+
+    # ------------------------------------------------------
+    # Loss
+    # ------------------------------------------------------
+
+    LOGGER.info("Building Loss Engine")
+
+    loss_fn = LossFactory.build(
+        configs["loss"]
+    )
+
+    # ------------------------------------------------------
+    # Metrics
+    # ------------------------------------------------------
+
+    LOGGER.info("Building Metric Engine")
+
+    metric_manager = MetricManager(
+        configs["metrics"]["metrics"]
+    )
+
+    # ------------------------------------------------------
+    # Optimizer
+    # ------------------------------------------------------
+
+    LOGGER.info("Building Optimizer")
+
+    optimizer = OptimizerFactory.build(
+
+        model,
+
+        configs["optimizer"],
+
+    )
+
+    # ------------------------------------------------------
+    # Scheduler
+    # ------------------------------------------------------
+
+    LOGGER.info("Building Scheduler")
+
+    scheduler = SchedulerFactory.build(
+
+        optimizer,
+
+        configs["scheduler"],
+
+    )
+
+    trainer_cfg = build_trainer_config(
+        configs["training"]
+    )
+
+    LOGGER.info("=" * 80)
+    LOGGER.info("Framework Ready")
+    LOGGER.info("=" * 80)
+
+    return (
+
+        model,
+
+        train_loader,
+
+        val_loader,
+
+        optimizer,
+
+        scheduler,
+
+        loss_fn,
+
+        metric_manager,
+
+        trainer_cfg,
+
+    )
+# ==========================================================
+# Main
+# ==========================================================
+
+def main():
+
+    args = build_parser().parse_args()
+
+    configure_cuda()
+
+    seed_everything(args.seed)
+
+    print_environment()
+
+    config_dir = Path(args.config_dir)
+
+    configs = load_all_configs(config_dir)
+
+    (
+        model,
+        train_loader,
+        val_loader,
+        optimizer,
+        scheduler,
+        loss_fn,
+        metric_manager,
+        trainer_cfg,
+    ) = build_framework(configs)
+
+    LOGGER.info("Creating Segmentation Trainer")
+
+    trainer = SegmentationTrainer(
+
+        model=model,
+
+        optimizer=optimizer,
+
+        loss_fn=loss_fn,
+
+        train_loader=train_loader,
+
+        val_loader=val_loader,
+
+        config=trainer_cfg,
+
+        metric_manager=metric_manager,
+
+        scheduler=scheduler,
+
+        device=args.device,
+
+    )
+
+    if args.resume is not None:
+
+        LOGGER.info(
+            "Resuming from checkpoint : %s",
+            args.resume,
+        )
+
+        trainer.resume(
+            Path(args.resume)
+        )
+
+    LOGGER.info("=" * 80)
+    LOGGER.info("Starting Training")
+    LOGGER.info("=" * 80)
+
+    try:
+
+        trainer.fit()
+
+    except KeyboardInterrupt:
+
+        LOGGER.warning(
+            "Training interrupted by user."
+        )
+
+    except RuntimeError as e:
+
+        LOGGER.exception(
+            "RuntimeError occurred during training."
+        )
+
+        raise e
+
+    except Exception as e:
+
+        LOGGER.exception(
+            "Unexpected exception during training."
+        )
+
+        raise e
+
+    LOGGER.info("=" * 80)
+    LOGGER.info("Training Finished Successfully")
+    LOGGER.info("=" * 80)
+
+
+# ==========================================================
+# Entry Point
+# ==========================================================
+
+if __name__ == "__main__":
+
+    main()
