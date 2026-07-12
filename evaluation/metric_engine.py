@@ -5,7 +5,8 @@ from monai.metrics import (
     DiceMetric,
     HausdorffDistanceMetric,
     SurfaceDistanceMetric,
-    ConfusionMatrixMetric
+    ConfusionMatrixMetric,
+    MeanIoU
 )
 from monai.transforms import Activations, AsDiscrete, Compose
 import numpy as np
@@ -17,7 +18,7 @@ class ResearchMetricEngine:
         self.device = device
         # Overlap Metrics
         self.dice = DiceMetric(include_background=False, reduction="mean")
-        self.iou = DiceMetric(include_background=False, reduction="mean", jaccard=True)
+        self.iou = MeanIoU(include_background=False, reduction="mean")
         # We can implement Tversky and F-beta manually or through confusion matrix.
         
         # Classification (Voxel-wise)
