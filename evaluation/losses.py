@@ -112,6 +112,13 @@ class DynamicHybridLoss(nn.Module):
         total_loss = 0.0
 
         for ds_idx, pred in enumerate(preds):
+            if pred.shape[2:] != target.shape[2:]:
+                pred = torch.nn.functional.interpolate(
+                    pred,
+                    size=target.shape[2:],
+                    mode="trilinear",
+                    align_corners=False
+                )
             scale_loss_vals = [criterion(pred, target) for criterion in self.losses]
             scale_total = self._compute_weighted(scale_loss_vals)
             
