@@ -62,7 +62,6 @@ class SegmentationTrainer:
         
         self.health_monitor = HealthMonitor(self.model)
         self.callbacks: list[TrainerCallback] = [
-            ProgressBar(), 
             EarlyStopping(),
             ResearchFrameworkCallback(self.metric_manager, self.health_monitor, self.config)
         ]
@@ -110,7 +109,10 @@ class SegmentationTrainer:
                 loss = loss_dict["total"] / self.config.grad_accum_steps
 
             Validator.validate_loss(loss)
-            self.metric_manager.update_loss(loss_dict, mode="train")
+            try:
+                self.metric_manager.update_loss(loss_dict, mode="train")
+            except Exception as e:
+                logger.error(f"Research metric loss update failed: {e}", exc_info=True)
 
             if self.scaler:
                 self.scaler.scale(loss).backward()
@@ -150,8 +152,11 @@ class SegmentationTrainer:
             loss_dict = self.loss_fn(outputs, masks)
             Validator.validate_loss(loss_dict["total"])
             
-        self.metric_manager.update_loss(loss_dict, mode="val")
-        self.metric_manager.update(outputs, masks)
+        try:
+            self.metric_manager.update_loss(loss_dict, mode="val")
+            self.metric_manager.update(outputs, masks)
+        except Exception as e:
+            logger.error(f"Research metric validation update failed: {e}", exc_info=True)
 
         if batch_idx == 0:
             self._vis_batch = (
@@ -214,15 +219,28 @@ class SegmentationTrainer:
                 self._trigger("on_validation_end")
                 
                 avg_val_loss = val_loss / max(len(self.val_loader), 1)
-                metrics = self.metric_manager.compute()
+                try:
+                    metrics = self.metric_manager.compute()
+                except Exception as e:
+                    logger.error(f"Research metric computation failed: {e}", exc_info=True)
+                    metrics = {}
                 
                 # METRICS & LOGGING
                 epoch_time = time.time() - t0
                 lr = self.optimizer.param_groups[0]['lr']
                 log_dict = {"epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, "learning_rate": lr, "time_sec": epoch_time, **metrics}
                 
-                if epoch == 1: self.exp_logger.init_csv(list(log_dict.keys()))
-                self.exp_logger.log_metrics(epoch, log_dict)
+                if epoch == 1: 
+                    try:
+                        self.exp_logger.init_csv(list(log_dict.keys()))
+                    except Exception as e:
+                        logger.error(f"CSV initialization failed: {e}")
+                        
+                try:
+                    self.exp_logger.log_metrics(epoch, log_dict)
+                except Exception as e:
+                    logger.error(f"Metric logging failed: {e}", exc_info=True)
+                    
                 self._trigger("on_epoch_end", epoch, log_dict)
                 
                 if self.scheduler:

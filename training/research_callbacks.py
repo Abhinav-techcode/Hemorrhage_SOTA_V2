@@ -2,6 +2,7 @@ import os
 import csv
 import json
 import logging
+import time
 from typing import Dict, Any, List
 import torch
 from pathlib import Path
@@ -11,6 +12,12 @@ from evaluation.validator import ResearchValidator
 from evaluation.prediction_analysis import PredictionAnalyzer
 from training.health_monitor import HealthMonitor
 from evaluation.visualize import Visualizer
+
+from rich.live import Live
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
 logger = logging.getLogger(__name__)
 
@@ -33,27 +40,141 @@ class ResearchFrameworkCallback(TrainerCallback):
         self.best_value = float("inf") if self.best_is_min else -float("inf")
         self.best_epoch = -1
 
+        # Dashboard state
+        self.current_epoch = 1
+        self.current_train_loss = 0.0
+        self.current_lr = 0.0
+        self.val_metrics = {}
+        self.epoch_start_time = 0.0
+        self.samples_per_sec = 0.0
+        self.batch_count = 0
+        self.last_batch_time = 0.0
+        
+        # Progress
+        self.progress = Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            TimeRemainingColumn()
+        )
+        self.task_id = None
+        self.live = None
+
+    def _build_layout(self) -> Layout:
+        layout = Layout()
+        layout.split_column(
+            Layout(name="header", size=3),
+            Layout(name="main"),
+            Layout(name="footer", size=5)
+        )
+        layout["main"].split_row(
+            Layout(name="hardware"),
+            Layout(name="metrics")
+        )
+        
+        # Header
+        layout["header"].update(Panel(f"[bold cyan]HybridMedNeXt++ Research Dashboard | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
+        
+        # Hardware
+        mem = torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0
+        hw_table = Table(show_header=False, expand=True, box=None)
+        hw_table.add_row("GPU Memory", f"{mem:.1f} GB")
+        hw_table.add_row("Samples/sec", f"{self.samples_per_sec:.2f}")
+        hw_table.add_row("Learning Rate", f"{self.current_lr:.2e}")
+        layout["hardware"].update(Panel(hw_table, title="[yellow]Hardware & Opt[/yellow]"))
+        
+        # Metrics
+        metric_table = Table(expand=True, box=None)
+        metric_table.add_column("Metric", style="cyan")
+        metric_table.add_column("Train", style="green")
+        metric_table.add_column("Validation", style="magenta")
+        
+        metric_table.add_row("Loss", f"{self.current_train_loss:.4f}", f"{self.val_metrics.get('val_loss', 0.0):.4f}")
+        metric_table.add_row("Dice", "-", f"{self.val_metrics.get('val_dice', 0.0):.4f}")
+        metric_table.add_row("IoU", "-", f"{self.val_metrics.get('val_iou', 0.0):.4f}")
+        metric_table.add_row("HD95", "-", f"{self.val_metrics.get('val_hd95', 0.0):.4f}")
+        metric_table.add_row("Surface Dice", "-", f"{self.val_metrics.get('val_asd', 0.0):.4f}")
+        
+        layout["metrics"].update(Panel(metric_table, title="[magenta]Performance[/magenta]"))
+        
+        # Footer
+        footer_table = Table(show_header=False, expand=True, box=None)
+        best_str = f"Best {self.best_criterion}: {self.best_value:.4f} (Epoch {self.best_epoch})"
+        footer_table.add_row(self.progress, best_str)
+        layout["footer"].update(Panel(footer_table, title="[green]Progress & Best Model[/green]"))
+        
+        return layout
+
+    def on_fit_begin(self, trainer) -> None:
+        self.live = Live(self._build_layout(), refresh_per_second=4, screen=False)
+        self.live.start()
+
+    def on_fit_end(self, trainer) -> None:
+        if self.live:
+            self.live.stop()
+
+    def on_epoch_begin(self, trainer, epoch: int):
+        self.current_epoch = epoch
+        self.epoch_start_time = time.time()
+        self.last_batch_time = time.time()
+        self.batch_count = 0
+        total_batches = len(trainer.train_loader)
+        if self.task_id is None:
+            self.task_id = self.progress.add_task("Training", total=total_batches)
+        else:
+            self.progress.reset(self.task_id, total=total_batches, description="Training")
+        
+        if self.live:
+            self.live.update(self._build_layout())
+
     def on_train_batch_end(self, trainer, batch_idx: int, loss: float):
-        # We don't spam train batch logs, trainer handles that via ProgressBar callback
-        pass
+        self.current_train_loss = loss
+        self.current_lr = trainer.optimizer.param_groups[0]['lr']
+        self.batch_count += 1
+        
+        now = time.time()
+        elapsed = now - self.last_batch_time
+        # Batch size defaults to 1 if not explicitly found
+        batch_size = 1
+        if hasattr(trainer, 'train_loader') and hasattr(trainer.train_loader, 'batch_size') and trainer.train_loader.batch_size is not None:
+            batch_size = trainer.train_loader.batch_size
+            
+        if elapsed > 0:
+            self.samples_per_sec = batch_size / elapsed
+        self.last_batch_time = now
+        
+        self.progress.advance(self.task_id, 1)
+        
+        if self.live:
+            self.live.update(self._build_layout())
 
     def on_validation_begin(self, trainer):
         self.metric_engine.reset()
+        self.progress.update(self.task_id, description="Validation...")
 
     def on_epoch_end(self, trainer, epoch: int, log_dict: Dict[str, Any]):
         # 1. Health Monitoring (Phase 7)
-        health_stats = self.health_monitor.check_health()
-        log_dict.update(health_stats)
-        
+        try:
+            health_stats = self.health_monitor.check_health()
+            log_dict.update(health_stats)
+        except Exception as e:
+            logger.error(f"Health monitor check failed: {e}", exc_info=True)
+            
         # 2. Prediction Analysis & Validation Metrics (Phase 5, 2)
-        # Assuming metrics were computed inside trainer before this callback
-        metrics = self.metric_engine.compute(mode="val")
-        log_dict.update(metrics)
-        
-        # Train losses
-        train_metrics = self.metric_engine.compute(mode="train")
-        log_dict.update(train_metrics)
-        
+        try:
+            metrics = self.metric_engine.compute(mode="val")
+            log_dict.update(metrics)
+            self.val_metrics = metrics
+        except Exception as e:
+            logger.error(f"Metric engine validation compute failed: {e}", exc_info=True)
+            
+        try:
+            train_metrics = self.metric_engine.compute(mode="train")
+            log_dict.update(train_metrics)
+        except Exception as e:
+            logger.error(f"Metric engine train compute failed: {e}", exc_info=True)
+            
         # 3. Best Model Selection (Phase 9)
         current_val = log_dict.get(self.best_criterion, 0.0)
         is_best = False
@@ -75,11 +196,14 @@ class ResearchFrameworkCallback(TrainerCallback):
         
         # 4. Statistical Reporting (Phase 8)
         self.history.append(log_dict)
-        self._write_history(epoch, log_dict)
-        
-        # 5. Epoch Summary (Phase 3)
-        self._print_epoch_summary(epoch, log_dict)
-        
+        try:
+            self._write_history(epoch, log_dict)
+        except Exception as e:
+            logger.error(f"Failed to write history: {e}", exc_info=True)
+            
+        if self.live:
+            self.live.update(self._build_layout())
+            
     def _write_history(self, epoch: int, log_dict: Dict[str, Any]):
         csv_path = self.save_dir / "epoch_metrics.csv"
         file_exists = csv_path.exists()
@@ -92,23 +216,3 @@ class ResearchFrameworkCallback(TrainerCallback):
             
         with open(self.save_dir / "training_history.json", "w") as f:
             json.dump(self.history, f, indent=4)
-
-    def _print_epoch_summary(self, epoch: int, log_dict: Dict[str, Any]):
-        print(f"\n{'='*57}")
-        print(f"Epoch {epoch} / {self.config.epochs}")
-        print(f"{'='*57}")
-        print("TRAIN")
-        print(f"Loss             : {log_dict.get('train_loss', 0.0):.4f}")
-        print(f"Learning Rate    : {log_dict.get('learning_rate', 0.0):.6f}")
-        print(f"Epoch Time       : {log_dict.get('time_sec', 0.0):.2f}s")
-        print(f"{'-'*57}")
-        print("VALIDATION")
-        print(f"Loss             : {log_dict.get('val_loss', 0.0):.4f}")
-        print(f"Dice             : {log_dict.get('val_dice', 0.0):.4f}")
-        print(f"IoU              : {log_dict.get('val_iou', 0.0):.4f}")
-        print(f"Hausdorff95      : {log_dict.get('val_hd95', 0.0):.4f}")
-        print(f"Foreground %     : {log_dict.get('val_foreground_percentage', 0.0):.2f}%")
-        print(f"Empty Masks      : {log_dict.get('val_empty_masks', 0)}")
-        print(f"Mean Confidence  : {log_dict.get('val_mean_confidence', 0.0):.4f}")
-        print(f"\nBest {self.best_criterion}: {self.best_value:.4f} (Epoch {self.best_epoch})")
-        print(f"{'='*57}\n")
