@@ -28,8 +28,14 @@ def drop_path(x: Tensor, drop_prob: float = 0.0, training: bool = False) -> Tens
         return x
     keep_prob = 1 - drop_prob
     shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-    random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
+    
+    # NVML_SUCCESS == r INTERNAL ASSERT FAILED workaround for MIG:
+    # Generate random tensor on CPU to bypass CUDA RNG/Allocator stress on MIG,
+    # then move the tiny tensor to the GPU.
+    random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device='cpu')
     random_tensor.floor_()
+    random_tensor = random_tensor.to(x.device, non_blocking=True)
+    
     return x.div(keep_prob) * random_tensor
 
 
