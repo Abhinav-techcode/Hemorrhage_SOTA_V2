@@ -60,12 +60,7 @@ class SegmentationTrainer:
         self.scheduler = scheduler
         self.metric_manager = metric_manager
         
-        health_enabled = getattr(self.config, "health_monitor", {}).get("enabled", False)
-        self.health_monitor = HealthMonitor(self.model, enabled=health_enabled)
-        self.callbacks: list[TrainerCallback] = [
-            EarlyStopping(),
-            ResearchFrameworkCallback(self.metric_manager, self.health_monitor, self.config)
-        ]
+        self.callbacks: list[TrainerCallback] = []
         
         save_dir = Path(config.save_dir)
         self.ckpt_manager = CheckpointManager(save_dir)
@@ -110,22 +105,13 @@ class SegmentationTrainer:
         
         if self.current_epoch == 1 and batch_idx == 0:
             logger.info(f"Epoch 1, Batch 1 initialized. Input shape: {images.shape}, Mask shape: {masks.shape}")
-        
-        Validator.validate_input(images, masks)
 
         try:
             amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
             with amp_ctx:
                 outputs = self.model(images)
-                Validator.validate_model_output(outputs, masks)
                 loss_dict = self.loss_fn(outputs, masks)
                 loss = loss_dict["total"] / self.config.grad_accum_steps
-
-            Validator.validate_loss(loss)
-            try:
-                self.metric_manager.update_loss(loss_dict, mode="train")
-            except Exception as e:
-                logger.error(f"Research metric loss update failed: {e}", exc_info=True)
 
             if self.scaler:
                 self.scaler.scale(loss).backward()
@@ -165,20 +151,10 @@ class SegmentationTrainer:
             
         images = images.to(self.device, non_blocking=True)
         masks = masks.to(self.device, non_blocking=True)
-        Validator.validate_input(images, masks)
-        
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
         with amp_ctx:
             outputs = self.model(images)
-            Validator.validate_model_output(outputs, masks)
             loss_dict = self.loss_fn(outputs, masks)
-            Validator.validate_loss(loss_dict["total"])
-            
-        try:
-            self.metric_manager.update_loss(loss_dict, mode="val")
-            self.metric_manager.update(outputs, masks, meta=batch.get("image_meta_dict", None))
-        except Exception as e:
-            logger.error(f"Research metric validation update failed: {e}", exc_info=True)
 
         if batch_idx == 0:
             self._vis_batch = (
@@ -212,58 +188,35 @@ class SegmentationTrainer:
 
     def fit(self):
         logger.info(f"Starting Training on {self.device.upper()}")
-        self._trigger("on_fit_begin")
         
         try:
             for epoch in range(self.current_epoch, self.config.epochs + 1):
                 self.current_epoch = epoch
-                self._trigger("on_epoch_begin", epoch)
                 t0 = time.time()
                 
                 # TRAIN
                 self.model.train()
                 train_loss = 0.0
                 for b_idx, batch in enumerate(self.train_loader):
-                    self._trigger("on_train_batch_begin", b_idx)
                     loss = self._train_step(batch, b_idx)
                     train_loss += loss
-                    self._trigger("on_train_batch_end", b_idx, loss)
                 
                 avg_train_loss = train_loss / max(len(self.train_loader), 1)
 
                 # VALIDATE
                 self.model.eval()
                 val_loss = 0.0
-                self.metric_manager.reset()
-                self._trigger("on_validation_begin")
                 for b_idx, batch in enumerate(self.val_loader):
                     val_loss += self._val_step(batch, b_idx)
-                self._trigger("on_validation_end")
                 
                 avg_val_loss = val_loss / max(len(self.val_loader), 1)
-                try:
-                    metrics = self.metric_manager.compute()
-                except Exception as e:
-                    logger.error(f"Research metric computation failed: {e}", exc_info=True)
-                    metrics = {}
                 
                 # METRICS & LOGGING
                 epoch_time = time.time() - t0
                 lr = self.optimizer.param_groups[0]['lr']
-                log_dict = {"epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, "learning_rate": lr, "time_sec": epoch_time, **metrics}
+                log_dict = {"epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, "learning_rate": lr, "time_sec": epoch_time}
                 
-                if epoch == 1: 
-                    try:
-                        self.exp_logger.init_csv(list(log_dict.keys()))
-                    except Exception as e:
-                        logger.error(f"CSV initialization failed: {e}")
-                        
-                try:
-                    self.exp_logger.log_metrics(epoch, log_dict)
-                except Exception as e:
-                    logger.error(f"Metric logging failed: {e}", exc_info=True)
-                    
-                self._trigger("on_epoch_end", epoch, log_dict)
+                logger.info(f"Epoch {epoch}/{self.config.epochs} - Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Time: {epoch_time:.2f}s")
                 
                 if self.scheduler:
                     self.scheduler.step(avg_val_loss) if isinstance(self.scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau) else self.scheduler.step()
