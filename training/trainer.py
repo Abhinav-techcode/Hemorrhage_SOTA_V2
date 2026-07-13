@@ -60,7 +60,8 @@ class SegmentationTrainer:
         self.scheduler = scheduler
         self.metric_manager = metric_manager
         
-        self.health_monitor = HealthMonitor(self.model)
+        health_enabled = getattr(self.config, "health_monitor", {}).get("enabled", False)
+        self.health_monitor = HealthMonitor(self.model, enabled=health_enabled)
         self.callbacks: list[TrainerCallback] = [
             EarlyStopping(),
             ResearchFrameworkCallback(self.metric_manager, self.health_monitor, self.config)

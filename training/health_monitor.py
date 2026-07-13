@@ -8,43 +8,32 @@ class HealthMonitor:
     Model Health Monitoring Module (Phase 7)
     Tracks gradient, weight, and activation statistics once per epoch.
     """
-    def __init__(self, model: nn.Module):
+    def __init__(self, model: nn.Module, enabled: bool = False):
         self.model = model
+        self.enabled = enabled
         self.initial_weights = {}
-        self._capture_initial_weights()
         
-        self._capture_initial_weights()
+        if self.enabled:
+            self._capture_initial_weights()
         
         self.activation_means = []
         self.activation_stds = []
         self.dead_activations_count = 0
         self.total_activations = 0
         self.hooks = []
-        self._register_hooks()
         
-    def _register_hooks(self):
-        def hook_fn(module, input, output):
-            if isinstance(output, torch.Tensor) and output.requires_grad:
-                out = output.detach()
-                self.activation_means.append(out.mean().item())
-                self.activation_stds.append(out.std().item())
-                
-                # Check for dead activations (exactly 0, commonly after ReLU)
-                dead = (out == 0).sum().item()
-                self.dead_activations_count += dead
-                self.total_activations += out.numel()
-
-        # Only hook convolution or linear layers to keep overhead low
-        for name, module in self.model.named_modules():
-            if isinstance(module, (nn.Conv3d, nn.Linear, nn.ReLU, nn.GELU)):
-                self.hooks.append(module.register_forward_hook(hook_fn))
-                
+        # Phase 4.3: Removed intrusive forward hooks that block CUDA execution.
+        # If activation monitoring is strictly needed in Debug mode, it will be handled externally.
+        
     def _capture_initial_weights(self):
         for name, param in self.model.named_parameters():
             if param.requires_grad:
                 self.initial_weights[name] = param.detach().clone().cpu()
                 
     def check_health(self) -> Dict[str, float]:
+        if not self.enabled:
+            return {}
+            
         stats = {}
         
         # 1. Gradient Statistics
