@@ -20,8 +20,8 @@ class _BiFPNFusion(nn.Module):
         self.eps = 1e-4
 
     def forward(self, x1: Tensor, x2: Tensor) -> Tensor:
-        w1 = torch.relu(self.w1)
-        w2 = torch.relu(self.w2)
+        w1 = torch.relu(self.w1).view(1, 1, 1, 1, 1)
+        w2 = torch.relu(self.w2).view(1, 1, 1, 1, 1)
         return (w1 * x1 + w2 * x2) / (w1 + w2 + self.eps)
 
 

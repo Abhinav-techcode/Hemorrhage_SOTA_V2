@@ -4,3 +4,5 @@ params:
   out_channels: 1
   spatial_dims: 3
   deep_supervision: true
+  fusion_dim: 96
+  bridge_dim: 96
