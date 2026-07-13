@@ -22,6 +22,14 @@ from __future__ import annotations
 import argparse
 import logging
 import os
+
+# PyTorch NVIDIA MIG Workarounds MUST be set before torch is imported!
+# 1. expandable_segments:True prevents MIG NVML driver assert crashes by allocating memory in smaller chunks.
+# 2. PYTORCH_NVML_BASED_CUDA_CHECK=0 forces PyTorch to avoid polling NVML directly.
+if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+os.environ["PYTORCH_NVML_BASED_CUDA_CHECK"] = "0"
+
 import platform
 import random
 import sys
