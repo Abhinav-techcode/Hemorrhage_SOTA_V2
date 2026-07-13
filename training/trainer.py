@@ -96,8 +96,17 @@ class SegmentationTrainer:
 
     def _train_step(self, batch: dict, batch_idx: int) -> float:
         mem_format = torch.channels_last_3d if hasattr(torch, "channels_last_3d") and getattr(self.config, "channels_last", False) else torch.preserve_format
-        images = batch["image"].to(self.device, non_blocking=True, memory_format=mem_format)
-        masks = batch["mask"].to(self.device, non_blocking=True)
+        images = batch["image"]
+        masks = batch["mask"]
+        
+        # Strip MONAI MetaTensor to prevent __torch_function__ overhead and MIG NVML bugs
+        if hasattr(images, "as_tensor"):
+            images = images.as_tensor()
+        if hasattr(masks, "as_tensor"):
+            masks = masks.as_tensor()
+            
+        images = images.to(self.device, non_blocking=True, memory_format=mem_format)
+        masks = masks.to(self.device, non_blocking=True)
         
         if self.current_epoch == 1 and batch_idx == 0:
             logger.info(f"Epoch 1, Batch 1 initialized. Input shape: {images.shape}, Mask shape: {masks.shape}")
@@ -145,8 +154,17 @@ class SegmentationTrainer:
 
     @torch.no_grad()
     def _val_step(self, batch: dict, batch_idx: int) -> float:
-        images = batch["image"].to(self.device, non_blocking=True)
-        masks = batch["mask"].to(self.device, non_blocking=True)
+        images = batch["image"]
+        masks = batch["mask"]
+        
+        # Strip MONAI MetaTensor to prevent __torch_function__ overhead and MIG NVML bugs
+        if hasattr(images, "as_tensor"):
+            images = images.as_tensor()
+        if hasattr(masks, "as_tensor"):
+            masks = masks.as_tensor()
+            
+        images = images.to(self.device, non_blocking=True)
+        masks = masks.to(self.device, non_blocking=True)
         Validator.validate_input(images, masks)
         
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
