@@ -1,0 +1,28 @@
+# configs/model_convnext_umamba.yaml
+# ConvNeXt V2 + UMamba Architecture Configuration
+
+name: "HybridConvNeXtV2_UMamba"
+architecture: "convnext_v2_umamba"
+params:
+  # Input/Output
+  in_channels: 1
+  out_channels: 1
+  
+  # ConvNeXt V2 Encoder
+  encoder_depths: [2, 2, 4, 2, 2]
+  encoder_dims: [24, 48, 96, 192, 384]
+  drop_path_rate: 0.1
+  
+  # Multi-scale Feature Pyramid
+  fusion_dim: 384
+  fusion_strategy: "weighted" # Options: concat, attention, weighted
+  
+  # UMamba Bottleneck
+  mamba_d_state: 16
+  mamba_d_conv: 4
+  mamba_expand: 2
+  mamba_blocks: 2
+  
+  # Attention Guided Decoder
+  # Output dims for each upsampling stage [S3_res, S2_res, S1_res, S0_res]
+  decoder_dims: [192, 96, 48, 24]
