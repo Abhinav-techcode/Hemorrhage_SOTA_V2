@@ -25,7 +25,10 @@ import os
 import platform
 import random
 import sys
+import warnings
 from pathlib import Path
+
+warnings.filterwarnings("ignore", message=".*unable to generate class balanced samples.*")
 from typing import Any, Dict
 
 import numpy as np
