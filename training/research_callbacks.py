@@ -127,11 +127,15 @@ class ResearchFrameworkCallback(TrainerCallback):
         return layout
 
     def on_fit_begin(self, trainer) -> None:
-        self.live = Live(self._build_layout(), refresh_per_second=4, screen=False)
-        self.live.start()
+        if getattr(self.config, "disable_dashboard", False):
+            self.live = None
+            logger.info("Dashboard disabled by configuration.")
+        else:
+            self.live = Live(self._build_layout(), refresh_per_second=4, screen=False)
+            self.live.start()
 
     def on_fit_end(self, trainer) -> None:
-        if self.live:
+        if getattr(self, "live", None) is not None:
             self.live.stop()
 
     def on_epoch_begin(self, trainer, epoch: int):

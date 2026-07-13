@@ -406,6 +406,8 @@ def build_trainer_config(cfg: Dict[str, Any]) -> TrainerConfig:
 
         swa_enabled=cfg.get("swa_enabled", False),
 
+        disable_dashboard=cfg.get("disable_dashboard", False),
+
     )
 
 
