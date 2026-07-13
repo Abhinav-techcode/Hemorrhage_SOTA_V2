@@ -157,7 +157,7 @@ class SegmentationTrainer:
             
         try:
             self.metric_manager.update_loss(loss_dict, mode="val")
-            self.metric_manager.update(outputs, masks)
+            self.metric_manager.update(outputs, masks, meta=batch.get("image_meta_dict", None))
         except Exception as e:
             logger.error(f"Research metric validation update failed: {e}", exc_info=True)
 

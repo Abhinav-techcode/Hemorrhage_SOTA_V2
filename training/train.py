@@ -139,10 +139,16 @@ def configure_cuda():
 
 import json
 import subprocess
+import hashlib
 
-def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, save_dir: str):
-    reports_dir = Path("outputs/reports")
-    reports_dir.mkdir(parents=True, exist_ok=True)
+def compute_fingerprint(data: Any) -> str:
+    try:
+        return hashlib.md5(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    except Exception:
+        return "Unknown"
+
+def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, exp_dir: Path):
+    reports_dir = exp_dir / "reports"
     
     import monai
     metadata = {
@@ -155,8 +161,19 @@ def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, 
         "git": {},
         "configs": configs,
         "args": vars(args),
-        "model_architecture": configs.get("model", {}).get("name", "Unknown"),
-        "dataset_splits": configs.get("dataset", {}).get("data_dir", "Unknown"),
+        "versions": {
+            "model": "v1.0",
+            "architecture": configs.get("model", {}).get("name", "Unknown"),
+            "dataset": "v1.0",
+            "transform": "v1.0",
+            "loss": "v1.0",
+            "metric": "v1.0"
+        },
+        "fingerprints": {
+            "dataset_config": compute_fingerprint(configs.get("dataset", {})),
+            "preprocessing_config": compute_fingerprint(configs.get("preprocessing", {})),
+            "augmentation_config": compute_fingerprint(configs.get("augmentation", {}))
+        },
         "seed": getattr(args, "seed", 42),
     }
     
@@ -543,6 +560,16 @@ def main():
 
     configs = load_all_configs(config_dir)
 
+    import datetime
+    exp_id = f"EXP_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    exp_dir = Path("outputs") / exp_id
+    
+    for sub in ["checkpoints", "logs", "reports", "curves", "qualitative", "metrics", "failure_cases"]:
+        (exp_dir / sub).mkdir(parents=True, exist_ok=True)
+        
+    configs["training"]["save_dir"] = str(exp_dir / "checkpoints")
+    configs["training"]["exp_dir"] = str(exp_dir)
+
     (
         model,
         train_loader,
@@ -554,7 +581,7 @@ def main():
         trainer_cfg,
     ) = build_framework(configs)
 
-    save_experiment_metadata(configs, args, trainer_cfg.save_dir)
+    save_experiment_metadata(configs, args, exp_dir)
 
     LOGGER.info("Creating Segmentation Trainer")
 

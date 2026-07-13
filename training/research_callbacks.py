@@ -204,6 +204,41 @@ class ResearchFrameworkCallback(TrainerCallback):
         if self.live:
             self.live.update(self._build_layout())
             
+        # 5. Scientific Collapse Checks (Phase 4.2)
+        fg_ratio = log_dict.get("val_pred_foreground_ratio", log_dict.get("val_fg_ratio", -1.0))
+        val_dice = log_dict.get("val_dice", 1.0)
+        grad_norm = log_dict.get("grad_norm", 1.0)
+        
+        collapse_reasons = []
+        if fg_ratio != -1.0 and (fg_ratio < 0.00001 or fg_ratio > 0.9):
+            collapse_reasons.append(f"Prediction foreground ratio ({fg_ratio:.4f}) collapsed or exploded")
+        if grad_norm > 10000:
+            collapse_reasons.append(f"Gradient explosion (norm: {grad_norm:.4f})")
+        if grad_norm < 1e-8 and epoch > 1:
+            collapse_reasons.append(f"Gradient vanishing (norm: {grad_norm:.4f})")
+        import math
+        if math.isnan(val_dice):
+            collapse_reasons.append("Validation metric (Dice) is NaN")
+            
+        if collapse_reasons:
+            self._generate_failure_report(epoch, collapse_reasons, log_dict)
+            raise RuntimeError("Scientific Collapse Detected:\n" + "\n".join(collapse_reasons))
+            
+    def _generate_failure_report(self, epoch: int, reasons: List[str], log_dict: Dict[str, Any]):
+        exp_dir = Path(getattr(self.config, "exp_dir", "outputs"))
+        reports_dir = exp_dir / "failure_cases"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        report_path = reports_dir / f"Failure_Report_Epoch_{epoch}.md"
+        with open(report_path, "w") as f:
+            f.write(f"# Scientific Collapse Report - Epoch {epoch}\n\n")
+            f.write("## Reasons for Collapse\n")
+            for r in reasons:
+                f.write(f"- {r}\n")
+            f.write("\n## Metrics at Collapse\n")
+            for k, v in log_dict.items():
+                f.write(f"- **{k}**: {v}\n")
+        logger.error(f"Scientific collapse. Report saved to {report_path}")
+
     def _write_history(self, epoch: int, log_dict: Dict[str, Any]):
         csv_path = self.save_dir / "epoch_metrics.csv"
         file_exists = csv_path.exists()
