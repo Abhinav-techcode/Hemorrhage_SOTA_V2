@@ -22,8 +22,23 @@ class HealthMonitor:
         self.total_activations = 0
         self.hooks = []
         
-        # Phase 4.3: Removed intrusive forward hooks that block CUDA execution.
-        # If activation monitoring is strictly needed in Debug mode, it will be handled externally.
+        # Phase 4.3: Intrusive forward hooks only enabled in Debug mode
+        if self.enabled:
+            self._register_hooks()
+            
+    def _register_hooks(self):
+        def hook_fn(module, input, output):
+            if isinstance(output, torch.Tensor) and output.requires_grad:
+                out = output.detach()
+                self.activation_means.append(out.mean().item())
+                self.activation_stds.append(out.std().item())
+                dead = (out == 0).sum().item()
+                self.dead_activations_count += dead
+                self.total_activations += out.numel()
+
+        for name, module in self.model.named_modules():
+            if isinstance(module, (nn.Conv3d, nn.Linear, nn.ReLU, nn.GELU)):
+                self.hooks.append(module.register_forward_hook(hook_fn))
         
     def _capture_initial_weights(self):
         for name, param in self.model.named_parameters():

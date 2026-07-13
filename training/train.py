@@ -317,6 +317,12 @@ def build_parser():
         type=str,
     )
 
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable Research Debug Mode (intrusive hooks, gradient stats) for 1-epoch runs."
+    )
+
     return parser
 
 # ==========================================================
@@ -562,6 +568,12 @@ def main():
     config_dir = Path(args.config_dir)
 
     configs = load_all_configs(config_dir)
+
+    if args.debug:
+        if "health_monitor" not in configs["training"]:
+            configs["training"]["health_monitor"] = {}
+        configs["training"]["health_monitor"]["enabled"] = True
+        configs["training"]["epochs"] = 1  # Debug mode is only for 1 epoch
 
     import datetime
     exp_id = f"EXP_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
