@@ -28,4 +28,5 @@ class TrainerConfig:
     # Optional features
     enable_profiler: bool = False
     ema_enabled: bool = False
-    swa_enabled: bool = False    disable_dashboard: bool = False
+    swa_enabled: bool = False
+    disable_dashboard: bool = False
