@@ -68,7 +68,7 @@ class SafeBoundaryLoss(nn.Module):
             self.loss = BoundaryLoss(**kwargs)
         else:
             logger.warning("BoundaryLoss missing. Falling back to Surface approximations.")
-            self.loss = DiceLoss(include_background=False, sigmoid=True)
+            self.loss = DiceLoss(sigmoid=True)
             
     def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.loss(p, t)

@@ -223,11 +223,24 @@ class SegmentationTrainer:
                 # TRAIN
                 self.model.train()
                 train_loss = 0.0
+                data_time = 0.0
+                compute_time = 0.0
+                
+                t_data_start = time.time()
                 for b_idx, batch in enumerate(self.train_loader):
+                    t_data_end = time.time()
+                    data_time += (t_data_end - t_data_start)
+                    
                     self._trigger("on_train_batch_begin", b_idx)
                     loss = self._train_step(batch, b_idx)
                     train_loss += loss
                     self._trigger("on_train_batch_end", b_idx, loss)
+                    
+                    if "cuda" in self.device:
+                        torch.cuda.synchronize()
+                    t_compute_end = time.time()
+                    compute_time += (t_compute_end - t_data_end)
+                    t_data_start = time.time()
                 
                 avg_train_loss = train_loss / max(len(self.train_loader), 1)
 
@@ -250,7 +263,12 @@ class SegmentationTrainer:
                 # METRICS & LOGGING
                 epoch_time = time.time() - t0
                 lr = self.optimizer.param_groups[0]['lr']
-                log_dict = {"epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, "learning_rate": lr, "time_sec": epoch_time, **metrics}
+                log_dict = {
+                    "epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, 
+                    "learning_rate": lr, "time_sec": epoch_time, 
+                    "data_load_sec": data_time, "gpu_compute_sec": compute_time,
+                    **metrics
+                }
                 
                 if epoch == 1: 
                     try:

@@ -1,0 +1,12 @@
+Train Pipeline:
+- CropForegroundd
+- SpatialPadd (to at least 64x256x256)
+- RandCropByPosNegLabeld (64x256x256)
+
+Val Pipeline:
+- CropForegroundd
+- SpatialPadd (to at least 64x256x256)
+- (No resizing or cropping to 256x256 here, keep full volume)
+
+Trainer:
+- Use sliding_window_inference(images, roi_size=(64, 256, 256), sw_batch_size=4, predictor=self.model) in `_val_step`.

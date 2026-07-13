@@ -20,19 +20,18 @@ class ResearchMetricEngine:
         self.device = device
         
         # Overlap Metrics
-        self.dice = DiceMetric(include_background=False, reduction="mean")
-        self.iou = MeanIoU(include_background=False, reduction="mean")
+        self.dice = DiceMetric(reduction="mean")
+        self.iou = MeanIoU(reduction="mean")
         
         # Classification (Voxel-wise)
         self.conf_matrix = ConfusionMatrixMetric(
-            include_background=False, 
             metric_name=["accuracy", "precision", "recall", "specificity", "f1_score", "sensitivity"],
             reduction="mean"
         )
         
         # Distance Metrics
-        self.hd95 = HausdorffDistanceMetric(include_background=False, percentile=95.0, reduction="mean")
-        self.asd = SurfaceDistanceMetric(include_background=False, reduction="mean")
+        self.hd95 = HausdorffDistanceMetric(percentile=95.0, reduction="mean")
+        self.asd = SurfaceDistanceMetric(reduction="mean")
         
         # Trackers
         self.val_losses: Dict[str, List[float]] = {"total": [], "dice": [], "focal": [], "boundary": []}

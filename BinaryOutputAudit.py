@@ -33,7 +33,7 @@ def run_audit():
     loss_cfg = {
         "weighting_strategy": "static",
         "losses": [
-            {"name": "DiceFocalLoss", "params": {"include_background": False, "sigmoid": True}, "weight": 1.0}
+            {"name": "dice_focal", "params": {"sigmoid": True}, "weight": 1.0}
         ]
     }
     loss_engine = LossFactory.build(loss_cfg)

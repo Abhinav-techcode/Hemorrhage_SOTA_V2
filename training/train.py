@@ -125,9 +125,9 @@ def seed_everything(seed: int):
 
     os.environ["PYTHONHASHSEED"] = str(seed)
 
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = False
 
-    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.deterministic = True
 
 
 # ==========================================================
@@ -143,7 +143,7 @@ def configure_cuda():
 
     torch.backends.cudnn.allow_tf32 = True
 
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = False
 
     torch.set_float32_matmul_precision("high")
 

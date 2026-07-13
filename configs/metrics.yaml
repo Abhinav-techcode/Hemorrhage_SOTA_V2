@@ -1,7 +1,7 @@
 metrics:
   - name: "dice"
-    params: { include_background: false, reduction: "mean", get_not_nans: false }
+    params: { reduction: "mean", get_not_nans: false }
   - name: "hd95"
-    params: { include_background: false, percentile: 95.0, reduction: "mean", get_not_nans: false }
-  - name: "confusion" # Extracts Precision, Recall, Sensitivity, Specificity, F1, Accuracy
-    params: { include_background: false, metric_name: ["precision", "recall", "specificity", "accuracy", "f1_score"] }
+    params: { percentile: 95.0, reduction: "mean", get_not_nans: false }
+  - name: "conf_matrix"
+    params: { metric_name: ["precision", "recall", "specificity", "accuracy", "f1_score"] }
