@@ -651,7 +651,13 @@ def main():
     LOGGER.info("=" * 80)
     LOGGER.info("Training Finished Successfully")
     LOGGER.info("=" * 80)
-
+    
+    # Trigger Milestone D
+    try:
+        from evaluation.post_training_visualizer import trigger_visualization_pipeline
+        trigger_visualization_pipeline(exp_dir, config)
+    except ImportError:
+        LOGGER.warning("evaluation.post_training_visualizer not found. Skipping Milestone D.")
 
 # ==========================================================
 # Entry Point
