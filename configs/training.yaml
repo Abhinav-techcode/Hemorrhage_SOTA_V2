@@ -16,4 +16,5 @@ save_dir: "checkpoints/phase2_smoke_test"
 
 # Phase 4.3: Health monitor disabled by default for long runs
 health_monitor:
-  enabled: falsedisable_dashboard: true
+  enabled: false
+disable_dashboard: true
