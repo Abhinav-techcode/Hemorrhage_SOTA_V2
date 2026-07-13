@@ -254,7 +254,6 @@ class ResearchFrameworkCallback(TrainerCallback):
             collapse_reasons.append(f"Gradient explosion (norm: {grad_norm:.4f})")
         if grad_norm < 1e-8 and epoch > 1:
             collapse_reasons.append(f"Gradient vanishing (norm: {grad_norm:.4f})")
-        import math
         if math.isnan(val_dice):
             collapse_reasons.append("Validation metric (Dice) is NaN")
             
