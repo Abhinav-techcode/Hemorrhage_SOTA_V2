@@ -70,7 +70,8 @@ class ResearchFrameworkCallback(TrainerCallback):
         )
         layout["main"].split_row(
             Layout(name="hardware"),
-            Layout(name="metrics")
+            Layout(name="metrics"),
+            Layout(name="stats")
         )
         
         # Header
@@ -97,6 +98,24 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_row("Surface Dice", "-", f"{self.val_metrics.get('val_asd', 0.0):.4f}")
         
         layout["metrics"].update(Panel(metric_table, title="[magenta]Performance[/magenta]"))
+
+        # Stats
+        stats_table = Table(show_header=False, expand=True, box=None)
+        epochs_since_best = max(0, self.current_epoch - self.best_epoch) if self.best_epoch > 0 else 0
+        patience = getattr(self.config, "early_stopping_patience", 50)
+        
+        stats_table.add_row("Early Stop Counter", f"{epochs_since_best} / {patience}")
+        stats_table.add_row("Current Best Epoch", str(self.best_epoch if self.best_epoch > 0 else "-"))
+        
+        if self.best_value != float("inf") and self.best_value != -float("inf"):
+            curr_val = self.val_metrics.get(self.best_criterion, 0.0)
+            imp = curr_val - self.best_value if not self.best_is_min else self.best_value - curr_val
+            imp_str = f"[green]+{imp:.4f}[/]" if imp > 0 else f"[red]{imp:.4f}[/]"
+            stats_table.add_row("Improv. Since Best", imp_str)
+        else:
+            stats_table.add_row("Improv. Since Best", "-")
+            
+        layout["stats"].update(Panel(stats_table, title="[blue]Experiment Stats[/blue]"))
         
         # Footer
         footer_table = Table(show_header=False, expand=True, box=None)
@@ -190,6 +209,24 @@ class ResearchFrameworkCallback(TrainerCallback):
         if is_best:
             self.best_epoch = epoch
             trainer.ckpt_manager.save("best_research_model.pt", trainer._create_state())
+            
+            # Milestone B: Log qualitative tracking info for best models
+            exp_dir = Path(getattr(self.config, "exp_dir", "outputs"))
+            best_log_path = exp_dir / "reports" / "Best_Model_Tracking.jsonl"
+            best_log_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            tracking_info = {
+                "epoch": epoch,
+                "best_criterion": self.best_criterion,
+                "best_value": self.best_value,
+                "timestamp": time.strftime("%Y%m%d_%H%M%S"),
+                "metrics": {k: v for k, v in self.val_metrics.items() if isinstance(v, (int, float)) and not math.isnan(v)}
+            }
+            try:
+                with open(best_log_path, "a") as f:
+                    f.write(json.dumps(tracking_info) + "\n")
+            except Exception as e:
+                logger.error(f"Failed to log best model tracking info: {e}")
             
         log_dict["best_epoch"] = self.best_epoch
         log_dict["best_criterion_val"] = self.best_value
