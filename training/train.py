@@ -144,15 +144,20 @@ def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, 
     reports_dir = Path("outputs/reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
     
+    import monai
     metadata = {
         "environment": {
             "python_version": platform.python_version(),
             "pytorch_version": torch.__version__,
+            "monai_version": getattr(monai, "__version__", "unknown"),
             "cuda_available": torch.cuda.is_available(),
         },
         "git": {},
         "configs": configs,
         "args": vars(args),
+        "model_architecture": configs.get("model", {}).get("name", "Unknown"),
+        "dataset_splits": configs.get("dataset", {}).get("data_dir", "Unknown"),
+        "seed": getattr(args, "seed", 42),
     }
     
     if torch.cuda.is_available():
