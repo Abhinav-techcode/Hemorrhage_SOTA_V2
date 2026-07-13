@@ -220,8 +220,8 @@ class ResearchMetricEngine:
                 if "components" not in self.__dict__: self.components = []
                 self.components.append(1 if pred_voxels > 0 else 0)
                 
-                p = torch.clamp(prob, 1e-6, 1 - 1e-6)
-                ent = -(p * torch.log(p) + (1 - p) * torch.log(1 - p))
+                p = torch.clamp(prob.float(), 1e-5, 1 - 1e-5)
+                ent = -(p * torch.log(p) + (1.0 - p) * torch.log(1.0 - p))
                 self.entropies.append(ent.mean().item())
                 
                 # Trigger failure case saving if criteria met
