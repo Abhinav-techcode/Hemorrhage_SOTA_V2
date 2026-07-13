@@ -3,7 +3,7 @@ seed: 42
 deterministic: true
 epochs: 5
 batch_size: 1
-num_workers: 16
+num_workers: 4
 patience: 30
 mixed_precision: true
 amp_dtype: "bfloat16"
