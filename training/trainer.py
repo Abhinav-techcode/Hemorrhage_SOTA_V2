@@ -98,6 +98,9 @@ class SegmentationTrainer:
         images = batch["image"].to(self.device, non_blocking=True, memory_format=mem_format)
         masks = batch["mask"].to(self.device, non_blocking=True)
         
+        if self.current_epoch == 1 and batch_idx == 0:
+            logger.info(f"Epoch 1, Batch 1 initialized. Input shape: {images.shape}, Mask shape: {masks.shape}")
+        
         Validator.validate_input(images, masks)
 
         try:

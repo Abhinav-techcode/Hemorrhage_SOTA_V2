@@ -137,6 +137,43 @@ def configure_cuda():
     torch.set_float32_matmul_precision("high")
 
 
+import json
+import subprocess
+
+def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, save_dir: str):
+    reports_dir = Path("outputs/reports")
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    
+    metadata = {
+        "environment": {
+            "python_version": platform.python_version(),
+            "pytorch_version": torch.__version__,
+            "cuda_available": torch.cuda.is_available(),
+        },
+        "git": {},
+        "configs": configs,
+        "args": vars(args),
+    }
+    
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        metadata["environment"]["gpu"] = {
+            "name": props.name,
+            "memory_gb": props.total_memory / 1024**3,
+            "cuda_version": torch.version.cuda,
+            "cudnn_version": torch.backends.cudnn.version()
+        }
+        
+    try:
+        metadata["git"]["commit"] = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("utf-8").strip()
+        metadata["git"]["branch"] = subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"]).decode("utf-8").strip()
+    except Exception:
+        metadata["git"]["error"] = "Could not retrieve git info"
+        
+    with open(reports_dir / "Experiment_Metadata.json", "w") as f:
+        json.dump(metadata, f, indent=4)
+    LOGGER.info(f"Experiment metadata saved to {reports_dir / 'Experiment_Metadata.json'}")
+
 # ==========================================================
 # Environment Summary
 # ==========================================================
@@ -511,6 +548,8 @@ def main():
         metric_manager,
         trainer_cfg,
     ) = build_framework(configs)
+
+    save_experiment_metadata(configs, args, trainer_cfg.save_dir)
 
     LOGGER.info("Creating Segmentation Trainer")
 

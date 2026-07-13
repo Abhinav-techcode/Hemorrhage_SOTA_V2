@@ -36,7 +36,23 @@ from monai.transforms import (
     RandScaleIntensityd,
     RandShiftIntensityd,
     RandZoomd,
+    CropForegroundd,
+    SpatialPadd,
+    RandCropByPosNegLabeld,
+    CenterSpatialCropd,
 )
+
+class SinglePosNegCropd:
+    """Wrapper for RandCropByPosNegLabeld that returns a dict instead of a list of length 1.
+    This prevents MONAI Compose from mapping subsequent transforms over the list."""
+    def __init__(self, keys, label_key, spatial_size, pos, neg, image_key, image_threshold):
+        self.cropper = RandCropByPosNegLabeld(
+            keys=keys, label_key=label_key, spatial_size=spatial_size,
+            pos=pos, neg=neg, num_samples=1, image_key=image_key, image_threshold=image_threshold
+        )
+    def __call__(self, data):
+        out = self.cropper(data)
+        return out[0] if isinstance(out, list) else out
 
 from monai.utils import set_determinism
 
@@ -202,21 +218,19 @@ class TransformFactory:
         cfg = self.config
         xforms: List[Any] = [
 
-       EnsureTyped(
-        keys=["image"],
-        dtype=torch.float32,
-    ),
-
-    EnsureTyped(
-        keys=["mask"],
-        dtype=torch.long,
-    ),
-
-    ResizeWithPadOrCropd(
-        keys=["image", "mask"],
-        spatial_size=(64, 128, 128),
-        mode=("constant", "constant"),
-    ),
+            EnsureTyped(keys=["image"], dtype=torch.float32),
+            EnsureTyped(keys=["mask"], dtype=torch.long),
+            CropForegroundd(keys=["image", "mask"], source_key="image"),
+            SpatialPadd(keys=["image", "mask"], spatial_size=(64, 256, 256)),
+            SinglePosNegCropd(
+                keys=["image", "mask"],
+                label_key="mask",
+                spatial_size=(64, 256, 256),
+                pos=1,
+                neg=1,
+                image_key="image",
+                image_threshold=0,
+            ),
 
         ]
 
@@ -260,28 +274,19 @@ class TransformFactory:
         if cfg.adjust_contrast_enabled:
             xforms.append(RandAdjustContrastd(keys=["image"], prob=cfg.adjust_contrast_prob, gamma=cfg.adjust_contrast_gamma))
 
+        xforms.append(EnsureTyped(keys=["mask"], dtype=torch.long))
         return Compose(xforms)
 
     def build_eval_pipeline(self) -> Compose:
         return Compose([
-        EnsureTyped(
-            keys=["image"],
-            dtype=torch.float32,
-        ),
-
-        EnsureTyped(
-            keys=["mask"],
-            dtype=torch.long,
-        ),
-
-        ResizeWithPadOrCropd(
-            keys=["image", "mask"],
-            spatial_size=(64, 128, 128),
-            mode=("constant", "constant"),
-        ),
+        EnsureTyped(keys=["image"], dtype=torch.float32),
+        EnsureTyped(keys=["mask"], dtype=torch.long),
+        CropForegroundd(keys=["image", "mask"], source_key="image"),
+        SpatialPadd(keys=["image", "mask"], spatial_size=(64, 256, 256)),
+        CenterSpatialCropd(keys=["image", "mask"], roi_size=(64, 256, 256)),
     ])
     @staticmethod
-    def validate_pipeline(pipeline: Compose, sample_shape: tuple = (64, 128, 128)) -> None:
+    def validate_pipeline(pipeline: Compose, sample_shape: tuple = (64, 256, 256)) -> None:
         """Runs a mock tensor through the pipeline to ensure constraints hold."""
         dummy_data = {
             "image": torch.rand(3, *sample_shape, dtype=torch.float32),

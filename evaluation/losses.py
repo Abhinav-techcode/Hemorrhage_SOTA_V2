@@ -103,8 +103,13 @@ class DynamicHybridLoss(nn.Module):
         if isinstance(preds, dict): preds = list(preds.values())
         if isinstance(preds, torch.Tensor): preds = [preds]
 
+        # Sort predictions by spatial volume (coarsest to finest) to ensure deterministic ordering
+        preds = sorted(preds, key=lambda x: x.shape[-1] * x.shape[-2] * x.shape[-3])
+
         # Deep Supervision Decay Weights
+        # Finest resolution gets the highest weight
         ds_weights = [1.0 / (2 ** i) for i in range(len(preds))]
+        ds_weights = ds_weights[::-1]
         ds_total = sum(ds_weights)
         ds_weights = [w / ds_total for w in ds_weights]
 
