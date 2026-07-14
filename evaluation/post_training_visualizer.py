@@ -217,3 +217,22 @@ def trigger_visualization_pipeline(exp_dir: str | Path, config: dict):
         visualizer.run_visualization_pipeline()
     except Exception as e:
         logger.error(f"Visualization Pipeline Failed: {e}", exc_info=True)
+
+if __name__ == "__main__":
+    import argparse
+    
+    # Configure basic logging for standalone execution
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)-8s | %(message)s")
+    
+    parser = argparse.ArgumentParser(description="Standalone Post-Training Visualization")
+    parser.add_argument("--experiment", type=str, required=True, help="Path to the experiment directory (e.g., outputs/EXP_...)")
+    
+    args = parser.parse_args()
+    
+    exp_path = Path(args.experiment)
+    if not exp_path.exists():
+        logger.error(f"Experiment directory {exp_path} does not exist.")
+        exit(1)
+        
+    # config is not strictly required by the visualizer methods currently implemented
+    trigger_visualization_pipeline(exp_path, {})

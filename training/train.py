@@ -680,7 +680,10 @@ def main():
     # Trigger Milestone D
     try:
         from evaluation.post_training_visualizer import trigger_visualization_pipeline
-        trigger_visualization_pipeline(exp_dir, config)
+        try:
+            trigger_visualization_pipeline(exp_dir, configs)
+        except Exception as e:
+            LOGGER.exception(f"Post-training visualization failed: {e}")
     except ImportError:
         LOGGER.warning("evaluation.post_training_visualizer not found. Skipping Milestone D.")
 
