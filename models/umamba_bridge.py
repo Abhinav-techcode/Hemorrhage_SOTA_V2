@@ -7,38 +7,11 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
+from mamba_ssm import Mamba
+
 from .utils import init_weights_kaiming
 
 logger = logging.getLogger(__name__)
-
-try:
-    from mamba_ssm import Mamba
-    HAS_MAMBA = True
-except ImportError:
-    HAS_MAMBA = False
-
-
-class MambaFallback(nn.Module):
-    """Transformer-based fallback if mamba_ssm is not installed."""
-    def __init__(self, d_model: int, d_state: int = 16, d_conv: int = 4, expand: int = 2):
-        super().__init__()
-        # We ignore d_state and d_conv for the fallback
-        self.norm = nn.LayerNorm(d_model)
-        self.attn = nn.MultiheadAttention(d_model, num_heads=4, batch_first=True)
-        self.mlp = nn.Sequential(
-            nn.Linear(d_model, d_model * expand),
-            nn.GELU(),
-            nn.Linear(d_model * expand, d_model)
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        # x: (B, L, D)
-        x_norm = self.norm(x)
-        attn_out, _ = self.attn(x_norm, x_norm, x_norm)
-        x = x + attn_out
-        x = x + self.mlp(self.norm(x))
-        return x
-
 
 class UMambaBridge(nn.Module):
     """
@@ -52,17 +25,9 @@ class UMambaBridge(nn.Module):
         self.blocks = nn.ModuleList()
         
         for _ in range(num_blocks):
-            if HAS_MAMBA:
-                self.blocks.append(
-                    Mamba(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
-                )
-            else:
-                self.blocks.append(
-                    MambaFallback(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
-                )
-                
-        if not HAS_MAMBA:
-            logger.warning("mamba_ssm not found! UMambaBridge is using Transformer fallback.")
+            self.blocks.append(
+                Mamba(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
+            )
 
         self.apply(init_weights_kaiming)
 
