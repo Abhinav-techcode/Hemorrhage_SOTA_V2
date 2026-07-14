@@ -97,7 +97,7 @@ class PostTrainingVisualizer:
             # Fallback if metadata is missing
             logger.warning("Experiment_Metadata.json not found! Using fallback config.")
             model_cfg = {
-                "name": "HybridMedNeXt",
+                "architecture": "hybrid_segformer_umamba",
                 "params": {
                     "in_channels": 3,
                     "out_channels": 1,
