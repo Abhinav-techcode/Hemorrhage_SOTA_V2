@@ -358,7 +358,8 @@ class SegmentationTrainer:
                 epoch_time = time.time() - t0
                 lr = self.optimizer.param_groups[0]['lr']
                 log_dict = {
-                    "epoch": epoch, "train_loss": avg_train_loss, "val_loss": avg_val_loss, 
+                    "epoch": epoch, "train_loss": avg_train_loss, 
+                    "val_loss": metrics.get("val_loss_total", avg_val_loss), 
                     "learning_rate": lr, "time_sec": epoch_time, 
                     "data_load_sec": data_time, "gpu_compute_sec": compute_time,
                     **metrics

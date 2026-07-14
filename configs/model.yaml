@@ -6,3 +6,5 @@ params:
   deep_supervision: true
   fusion_dim: 96
   bridge_dim: 96
+  embed_dims: [64, 128, 320, 512]
+  decoder_dims: [256, 128, 64]

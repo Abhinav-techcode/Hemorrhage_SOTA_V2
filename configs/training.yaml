@@ -15,6 +15,6 @@ max_grad_norm: 1.0
 log_freq: 10
 save_dir: "checkpoints/phase2_smoke_test"
 
-# Phase 4.3: Health monitor disabled by default for long runs
+# Phase 4.3: Health monitor enabled to track gradient norms
 health_monitor:
-  enabled: false
+  enabled: true
