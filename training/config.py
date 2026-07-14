@@ -30,3 +30,6 @@ class TrainerConfig:
     ema_enabled: bool = False
     swa_enabled: bool = False
     disable_dashboard: bool = False
+
+    # Full Config Storage
+    full_config: dict = None

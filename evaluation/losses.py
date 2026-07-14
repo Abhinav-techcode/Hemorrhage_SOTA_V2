@@ -115,13 +115,17 @@ class DynamicHybridLoss(nn.Module):
     def forward(self, predictions: Union[torch.Tensor, Tuple[torch.Tensor, ...], List[torch.Tensor]], targets: torch.Tensor) -> Dict[str, torch.Tensor]:
         if isinstance(predictions, torch.Tensor):
             predictions = [predictions]
+            
+        if len(predictions) > 1:
+            if len(predictions) != 3:
+                raise ValueError(f"Deep supervision requires exactly 3 outputs (Full, Half, Quarter). Got {len(predictions)}")
 
         total_loss = 0.0
         loss_dict = {}
 
         # Deep Supervision logic
-        # For multiple outputs, typically the first is full resolution, others are lower res
-        # Weight them decaying: 1.0, 0.5, 0.25...
+        ds_weights = getattr(self, "ds_weights", [1.00, 0.50, 0.25])
+        
         for i, pred in enumerate(predictions):
             # Upsample pred if necessary
             if pred.shape[2:] != targets.shape[2:]:
@@ -130,8 +134,13 @@ class DynamicHybridLoss(nn.Module):
             layer_loss_vals = [loss_fn(pred, targets) for loss_fn in self.losses]
             layer_total = self._compute_weighted(layer_loss_vals)
             
-            # Deep supervision weight (1.0 for first, then halved)
-            weight = 1.0 / (2 ** i)
+            weight = ds_weights[i] if i < len(ds_weights) else 0.0
+            
+            # Phase 7 Safety Check
+            if i == 0 and weight != 1.00: raise AssertionError(f"Full supervision weight must be 1.00, got {weight}")
+            if i == 1 and weight != 0.50: raise AssertionError(f"Half supervision weight must be 0.50, got {weight}")
+            if i == 2 and weight != 0.25: raise AssertionError(f"Quarter supervision weight must be 0.25, got {weight}")
+            
             total_loss += weight * layer_total
             
             if i == 0:
@@ -139,3 +148,25 @@ class DynamicHybridLoss(nn.Module):
 
         loss_dict["total"] = total_loss
         return loss_dict
+
+class LossFactory:
+    @staticmethod
+    def build(config: Dict[str, Any]) -> DynamicHybridLoss:
+        loss_configs = config.get("losses", [])
+        strategy = config.get("weighting_strategy", "static")
+        
+        # Extract Deep Supervision Config
+        ds_config = config.get("deep_supervision", {})
+        ds_weights = ds_config.get("weights", {"full": 1.00, "half": 0.50, "quarter": 0.25})
+        
+        # Instantiate
+        loss_engine = DynamicHybridLoss(loss_configs, strategy)
+        
+        # Attach Deep Supervision weights explicitly
+        loss_engine.ds_weights = [
+            ds_weights.get("full", 1.00),
+            ds_weights.get("half", 0.50),
+            ds_weights.get("quarter", 0.25)
+        ]
+        
+        return loss_engine

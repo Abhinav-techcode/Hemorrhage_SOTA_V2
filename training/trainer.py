@@ -70,7 +70,12 @@ class SegmentationTrainer:
         save_dir = Path(config.save_dir)
         self.ckpt_manager = CheckpointManager(save_dir)
         self.exp_logger = ExperimentLogger(save_dir)
-        self.exp_logger.save_metadata(asdict(self.config) if hasattr(self.config, '__dataclass_fields__') else dict(self.config))
+        
+        # We will save full configuration from train.py instead of just TrainerConfig
+        if hasattr(self.config, 'full_config') and self.config.full_config:
+            self.exp_logger.save_metadata(self.config.full_config)
+        else:
+            self.exp_logger.save_metadata(asdict(self.config) if hasattr(self.config, '__dataclass_fields__') else dict(self.config))
 
         self.amp_dtype = torch.bfloat16 if (getattr(config, "amp_dtype", "bfloat16") == "bfloat16" and torch.cuda.is_bf16_supported()) else torch.float16
         self.device_type = "cuda" if "cuda" in self.device else "cpu"
@@ -210,8 +215,97 @@ class SegmentationTrainer:
         if self.scaler and "scaler" in ckpt: self.scaler.load_state_dict(ckpt["scaler"])
         logger.info(f"Resumed training from epoch {self.current_epoch}.")
 
+    def _pre_flight_check(self):
+        logger.info("Running Pre-flight Checklist...")
+        
+        # 1. Parameter Count
+        total_params = sum(p.numel() for p in self.model.parameters())
+        logger.info(f"Parameter Count: {total_params / 1e6:.2f} M")
+        
+        # 2. Get Dummy Batch
+        batch = next(iter(self.train_loader))
+        images = batch["image"]
+        masks = batch["mask"]
+        if hasattr(images, "as_tensor"): images = images.as_tensor()
+        if hasattr(masks, "as_tensor"): masks = masks.as_tensor()
+        images = images.to(self.device, non_blocking=True)
+        masks = masks.to(self.device, non_blocking=True)
+        
+        # 3. Forward Pass & Memory Usage & Mixed Precision
+        if "cuda" in self.device_type:
+            torch.cuda.reset_peak_memory_stats(self.device)
+        amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
+        with amp_ctx:
+            outputs = self.model(images)
+            
+            # Deep Supervision
+            if isinstance(outputs, (list, tuple)):
+                assert len(outputs) == 3, "Deep supervision must output 3 tensors."
+            
+            # Phase 7 Deep Supervision Verification
+            if getattr(self.loss_fn, "ds_weights", None) is not None:
+                weights = self.loss_fn.ds_weights
+                print("\nDeep Supervision Verification\n")
+                print("Output Order:")
+                print(f"Quarter -> weight = {weights[2]:.2f}")
+                print(f"Half    -> weight = {weights[1]:.2f}")
+                print(f"Full    -> weight = {weights[0]:.2f}\n")
+                
+                if weights[0] != 1.00 or weights[1] != 0.50 or weights[2] != 0.25:
+                    print("✗ Weights configuration invalid. Aborting training.")
+                    raise AssertionError("Deep supervision weights must exactly match 1.0, 0.5, 0.25 in the correct order.")
+                    
+                print("✓ Order Verified")
+                print("✓ Weights Verified")
+                print("✓ Highest weight assigned to Full Resolution\n")
+
+            # Loss Computation
+            loss_dict = self.loss_fn(outputs, masks)
+            loss = loss_dict["total"]
+        
+        mem_alloc = torch.cuda.max_memory_allocated(self.device) / (1024**3) if "cuda" in self.device_type else 0.0
+        logger.info(f"Peak Memory after Forward: {mem_alloc:.2f} GB")
+        
+        # 4. Backward Pass & Gradient Flow
+        self.optimizer.zero_grad(set_to_none=True)
+        if self.scaler:
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
+        else:
+            loss.backward()
+            
+        has_grad = any(p.grad is not None for p in self.model.parameters())
+        assert has_grad, "Gradient Flow failed: No gradients computed."
+        self.optimizer.zero_grad(set_to_none=True)
+        
+        # 5. Checkpoint Save/Resume
+        dummy_state = self._create_state()
+        ckpt_path = Path(self.config.save_dir) / "pre_flight_ckpt.pth"
+        torch.save(dummy_state, ckpt_path)
+        assert ckpt_path.exists(), "Checkpoint save failed."
+        loaded = torch.load(ckpt_path, weights_only=False)
+        assert "model_state" in loaded, "Checkpoint resume failed."
+        ckpt_path.unlink()
+        
+        # 6. Metric Computation
+        self.metric_manager.reset()
+        self.metric_manager.update_loss(loss_dict, mode="train")
+        
+        logger.info("Pre-flight Checklist Passed Successfully!")
+
     def fit(self):
         logger.info(f"Starting Training on {self.device.upper()}")
+        
+        # Phase 8: Pre-flight Checklist
+        if self.current_epoch == 1:
+            try:
+                self._pre_flight_check()
+            except Exception as e:
+                logger.error(f"Pre-flight Check Failed: {e}", exc_info=True)
+                with open("Failure_Report.md", "w") as f:
+                    f.write(f"# Training Failure Report\n\n## Error\n\n```\n{str(e)}\n```\n\n## Traceback\n\n```\n{traceback.format_exc()}\n```\n")
+                raise RuntimeError("Training aborted due to Pre-flight check failure.")
+
         self._trigger("on_fit_begin")
         
         try:

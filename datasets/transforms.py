@@ -40,6 +40,8 @@ from monai.transforms import (
     SpatialPadd,
     RandCropByPosNegLabeld,
     CenterSpatialCropd,
+    Rand3DElasticd,
+    RandCoarseDropoutd,
 )
 
 class SinglePosNegCropd:
@@ -112,6 +114,16 @@ class AugmentationConfig:
     zoom_mode: InterpolationMode = InterpolationMode.TRILINEAR
     zoom_padding_mode: PaddingMode = PaddingMode.CONSTANT
 
+    elastic_enabled: bool = True
+    elastic_prob: float = 0.1
+    elastic_sigma_range: Sequence[float] = (5.0, 7.0)
+    elastic_magnitude_range: Sequence[float] = (50.0, 100.0)
+
+    dropout_enabled: bool = True
+    dropout_prob: float = 0.1
+    dropout_holes: int = 1
+    dropout_spatial_size: int = 8
+
     # Intensity Transforms
     gaussian_noise_enabled: bool = True
     gaussian_noise_prob: float = 0.15
@@ -144,7 +156,7 @@ class AugmentationConfig:
             self.flip_prob, self.affine_prob, self.zoom_prob, 
             self.gaussian_noise_prob, self.gaussian_smooth_prob,
             self.scale_intensity_prob, self.shift_intensity_prob,
-            self.adjust_contrast_prob
+            self.adjust_contrast_prob, self.elastic_prob, self.dropout_prob
         ]
         for prob in probs:
             if not isinstance(prob, (int, float)) or not (0.0 <= prob <= 1.0):
@@ -177,8 +189,65 @@ def load_and_hash_config(config_path: str) -> tuple[AugmentationConfig, str]:
     
     try:
         raw_config = yaml.safe_load(file_bytes) or {}
-        valid_keys = AugmentationConfig.__dataclass_fields__.keys()
-        filtered = {k: v for k, v in raw_config.items() if k in valid_keys}
+        if "augmentation" in raw_config:
+            aug_cfg = raw_config["augmentation"]
+            
+            # Map nested dictionary to flat dataclass
+            flat_cfg = {}
+            if "random_flip" in aug_cfg:
+                flat_cfg["flip_enabled"] = aug_cfg["random_flip"].get("enabled", True)
+                flat_cfg["flip_prob"] = aug_cfg["random_flip"].get("prob", 0.5)
+                # handle spatial_axis array
+                axis = aug_cfg["random_flip"].get("spatial_axis", 2)
+                flat_cfg["flip_spatial_axis"] = axis if isinstance(axis, int) else tuple(axis)
+            
+            if "random_affine" in aug_cfg:
+                flat_cfg["affine_enabled"] = aug_cfg["random_affine"].get("enabled", True)
+                flat_cfg["affine_prob"] = aug_cfg["random_affine"].get("prob", 0.2)
+                flat_cfg["affine_rotate_range"] = aug_cfg["random_affine"].get("rotate_range", (0.0, 0.0, 0.1745))
+                flat_cfg["affine_scale_range"] = aug_cfg["random_affine"].get("scale_range", (0.05, 0.05, 0.05))
+            
+            if "elastic_deformation" in aug_cfg:
+                flat_cfg["elastic_enabled"] = aug_cfg["elastic_deformation"].get("enabled", True)
+                flat_cfg["elastic_prob"] = aug_cfg["elastic_deformation"].get("prob", 0.15)
+                flat_cfg["elastic_sigma_range"] = aug_cfg["elastic_deformation"].get("sigma_range", (5.0, 7.0))
+                flat_cfg["elastic_magnitude_range"] = aug_cfg["elastic_deformation"].get("magnitude_range", (50.0, 100.0))
+            
+            if "gaussian_noise" in aug_cfg:
+                flat_cfg["gaussian_noise_enabled"] = aug_cfg["gaussian_noise"].get("enabled", True)
+                flat_cfg["gaussian_noise_prob"] = aug_cfg["gaussian_noise"].get("prob", 0.15)
+            
+            if "gaussian_blur" in aug_cfg:
+                flat_cfg["gaussian_smooth_enabled"] = aug_cfg["gaussian_blur"].get("enabled", True)
+                flat_cfg["gaussian_smooth_prob"] = aug_cfg["gaussian_blur"].get("prob", 0.10)
+                
+            if "gamma" in aug_cfg:
+                flat_cfg["adjust_contrast_enabled"] = aug_cfg["gamma"].get("enabled", True)
+                flat_cfg["adjust_contrast_prob"] = aug_cfg["gamma"].get("prob", 0.20)
+                
+            if "intensity_shift" in aug_cfg:
+                flat_cfg["shift_intensity_enabled"] = aug_cfg["intensity_shift"].get("enabled", True)
+                flat_cfg["shift_intensity_prob"] = aug_cfg["intensity_shift"].get("prob", 0.15)
+                
+            if "zoom" in aug_cfg:
+                flat_cfg["zoom_enabled"] = aug_cfg["zoom"].get("enabled", True)
+                flat_cfg["zoom_prob"] = aug_cfg["zoom"].get("prob", 0.15)
+                
+            if "coarse_dropout" in aug_cfg:
+                flat_cfg["dropout_enabled"] = aug_cfg["coarse_dropout"].get("enabled", True)
+                flat_cfg["dropout_prob"] = aug_cfg["coarse_dropout"].get("prob", 0.10)
+            
+            # Map valid keys
+            valid_keys = AugmentationConfig.__dataclass_fields__.keys()
+            filtered = {k: v for k, v in flat_cfg.items() if k in valid_keys}
+            
+            # Additional root keys (like seed, deterministic)
+            for k, v in raw_config.items():
+                if k in valid_keys and k not in filtered:
+                    filtered[k] = v
+        else:
+            valid_keys = AugmentationConfig.__dataclass_fields__.keys()
+            filtered = {k: v for k, v in raw_config.items() if k in valid_keys}
         
         # Parse enums safely
         if "zoom_mode" in filtered: filtered["zoom_mode"] = InterpolationMode(filtered["zoom_mode"])
@@ -191,6 +260,20 @@ def load_and_hash_config(config_path: str) -> tuple[AugmentationConfig, str]:
         config.validate()
         
         logger.info(f"Loaded Augmentation Config | SHA256: {config_hash}")
+        
+        # Log to display exact configuration loaded (per User request)
+        print("\nAugmentation Pipeline")
+        print(f"✓ Random Flip           : {'Enabled' if config.flip_enabled else 'Disabled'} (p={config.flip_prob:.2f})")
+        print(f"✓ Random Affine         : {'Enabled' if config.affine_enabled else 'Disabled'} (p={config.affine_prob:.2f})")
+        print(f"✓ Elastic Deformation   : {'Enabled' if config.elastic_enabled else 'Disabled'} (p={config.elastic_prob:.2f})")
+        print(f"✓ Gaussian Noise        : {'Enabled' if config.gaussian_noise_enabled else 'Disabled'} (p={config.gaussian_noise_prob:.2f})")
+        print(f"✓ Gaussian Blur         : {'Enabled' if config.gaussian_smooth_enabled else 'Disabled'} (p={config.gaussian_smooth_prob:.2f})")
+        print(f"✓ Gamma Correction      : {'Enabled' if config.adjust_contrast_enabled else 'Disabled'} (p={config.adjust_contrast_prob:.2f})")
+        print(f"✓ Intensity Shift       : {'Enabled' if config.shift_intensity_enabled else 'Disabled'} (p={config.shift_intensity_prob:.2f})")
+        print(f"✓ Zoom                  : {'Enabled' if config.zoom_enabled else 'Disabled'} (p={config.zoom_prob:.2f})")
+        print(f"✓ Coarse Dropout        : {'Enabled' if getattr(config, 'dropout_enabled', False) else 'Disabled'} (p={getattr(config, 'dropout_prob', 0.1):.2f})")
+        print("")
+        
         return config, config_hash
     except Exception as e:
         raise AugmentationConfigError(f"Configuration parsing failed: {str(e)}") from e
@@ -213,6 +296,10 @@ class TransformFactory:
             np.random.seed(self.config.seed)
             torch.manual_seed(self.config.seed)
             torch.cuda.manual_seed_all(self.config.seed)
+            
+    def get_config_dict(self) -> dict:
+        import dataclasses
+        return dataclasses.asdict(self.config)
 
     def build_train_pipeline(self) -> Compose:
         cfg = self.config
@@ -273,6 +360,25 @@ class TransformFactory:
 
         if cfg.adjust_contrast_enabled:
             xforms.append(RandAdjustContrastd(keys=["image"], prob=cfg.adjust_contrast_prob, gamma=cfg.adjust_contrast_gamma))
+
+        if getattr(cfg, 'elastic_enabled', False):
+            xforms.append(Rand3DElasticd(
+                keys=["image", "mask"],
+                prob=cfg.elastic_prob,
+                sigma_range=cfg.elastic_sigma_range,
+                magnitude_range=cfg.elastic_magnitude_range,
+                mode=(cfg.spatial_image_mode.value, cfg.spatial_mask_mode.value),
+                padding_mode=cfg.spatial_padding_mode.value,
+            ))
+
+        if getattr(cfg, 'dropout_enabled', False):
+            xforms.append(RandCoarseDropoutd(
+                keys=["image"],
+                holes=cfg.dropout_holes,
+                spatial_size=cfg.dropout_spatial_size,
+                prob=cfg.dropout_prob,
+                fill_value=0.0
+            ))
 
         xforms.append(EnsureTyped(keys=["mask"], dtype=torch.long))
         return Compose(xforms)

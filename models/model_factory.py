@@ -6,6 +6,7 @@ import torch.nn as nn
 from typing import Dict, Any
 from .hybrid_mednext import HybridMedNeXtPlus
 from .hybrid_convnext_umamba import HybridConvNeXtV2_UMamba
+from .hybrid_segformer_umamba import HybridSegFormerUMamba
 
 __all__ = ["build_model"]
 
@@ -29,6 +30,15 @@ def build_model(config: Dict[str, Any]) -> nn.Module:
             mamba_expand=params.get('mamba_expand', 2),
             mamba_blocks=params.get('mamba_blocks', 2),
             decoder_dims=params.get('decoder_dims', [192, 96, 48, 24])
+        )
+    elif arch == 'hybrid_segformer_umamba':
+        return HybridSegFormerUMamba(
+            in_channels=params.get('in_channels', 1),
+            num_classes=params.get('out_channels', 1),
+            embed_dims=params.get('embed_dims', [32, 64, 160, 256]),
+            fusion_dim=params.get('fusion_dim', 256),
+            decoder_dims=params.get('decoder_dims', [128, 64, 32]),
+            d_state=params.get('mamba_d_state', 16)
         )
     else:
         # Default to existing model

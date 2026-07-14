@@ -9,3 +9,9 @@ losses:
   - name: "boundary"
     weight: 0.2
     params: {}
+
+deep_supervision:
+  weights:
+    full: 1.00
+    half: 0.50
+    quarter: 0.25

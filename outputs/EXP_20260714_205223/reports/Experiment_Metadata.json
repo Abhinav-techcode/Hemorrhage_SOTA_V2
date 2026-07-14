@@ -1,0 +1,82 @@
+{
+    "environment": {
+        "python_version": "3.11.15",
+        "pytorch_version": "2.13.0",
+        "monai_version": "1.6.0",
+        "cuda_available": false
+    },
+    "git": {
+        "commit": "a5fe8e05f142e7b19ca71beb7bf82faafc826852",
+        "branch": "feature/hybrid-segformer-umamba"
+    },
+    "configs": {
+        "dataset": {
+            "processed_images_dir": "processed/images",
+            "processed_masks_dir": "processed/masks",
+            "metadata_csv": "processed/reports/Processed_Metadata.csv",
+            "split_file": "processed/splits/dataset_splits.json",
+            "kfold_split_file": "processed/splits/kfold_splits.json",
+            "load_mask": true,
+            "cache_size": 0,
+            "seed": 42,
+            "image_dtype": "float32",
+            "mask_dtype": "uint8",
+            "geometry_tolerance": 0.0001
+        },
+        "model": {
+            "name": "HybridMedNeXt",
+            "params": {
+                "in_channels": 3,
+                "out_channels": 1,
+                "spatial_dims": 3,
+                "deep_supervision": true,
+                "fusion_dim": 96,
+                "bridge_dim": 96
+            }
+        },
+        "training": {
+            "experiment_name": "3D_Hemorrhage_MedNeXt",
+            "seed": 42,
+            "deterministic": true,
+            "epochs": 250,
+            "batch_size": 1,
+            "num_workers": 4,
+            "patience": 30,
+            "mixed_precision": true,
+            "amp_dtype": "bfloat16",
+            "compile_model": false,
+            "channels_last": false,
+            "grad_accum_steps": 8,
+            "max_grad_norm": 1.0,
+            "log_freq": 10,
+            "save_dir": "outputs/EXP_20260714_205223/checkpoints",
+            "health_monitor": {
+                "enabled": false
+            },
+            "exp_dir": "outputs/EXP_20260714_205223",
+            "full_config": {
+                "dataset": {
+                    "processed_images_dir": "processed/images",
+                    "processed_masks_dir": "processed/masks",
+                    "metadata_csv": "processed/reports/Processed_Metadata.csv",
+                    "split_file": "processed/splits/dataset_splits.json",
+                    "kfold_split_file": "processed/splits/kfold_splits.json",
+                    "load_mask": true,
+                    "cache_size": 0,
+                    "seed": 42,
+                    "image_dtype": "float32",
+                    "mask_dtype": "uint8",
+                    "geometry_tolerance": 0.0001
+                },
+                "model": {
+                    "name": "HybridMedNeXt",
+                    "params": {
+                        "in_channels": 3,
+                        "out_channels": 1,
+                        "spatial_dims": 3,
+                        "deep_supervision": true,
+                        "fusion_dim": 96,
+                        "bridge_dim": 96
+                    }
+                },
+                "training": 

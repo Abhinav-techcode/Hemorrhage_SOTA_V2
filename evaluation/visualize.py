@@ -14,6 +14,8 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -114,4 +116,57 @@ class Visualizer:
         writer.add_image(f"{full_tag}/Coronal_Overlay", coronal, global_step=step)
         writer.add_image(f"{full_tag}/Sagittal_Overlay", sagittal, global_step=step)
         
-        # Also log base metrics curves manually if needed, though they are usually handled by scaler add_scalar
+    @staticmethod
+    def generate_qualitative_report(
+        save_dir: Path,
+        patient_id: str,
+        image: torch.Tensor,
+        pred: torch.Tensor,
+        target: torch.Tensor,
+        metrics: dict,
+        epoch: int,
+        dataset_name: str = "Dataset"
+    ) -> None:
+        """
+        Phase 10: Generates high-quality RGB multi-plane overlays with embedded text.
+        """
+        img = image[0, 0].detach().cpu()
+        pred_bin = pred[0, 0].ge(0.5).float().detach().cpu()
+        gt = target[0, 0].float().detach().cpu()
+        
+        rgb_vol = Visualizer.create_color_overlay(img, gt, pred_bin)
+        
+        D, H, W = img.shape
+        axial = rgb_vol[:, D // 2, :, :].permute(1, 2, 0).numpy()
+        coronal = rgb_vol[:, :, H // 2, :].permute(1, 2, 0).numpy()
+        sagittal = rgb_vol[:, :, :, W // 2].permute(1, 2, 0).numpy()
+        
+        fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+        axes[0].imshow(axial)
+        axes[0].set_title("Axial")
+        axes[0].axis('off')
+        
+        axes[1].imshow(coronal)
+        axes[1].set_title("Coronal")
+        axes[1].axis('off')
+        
+        axes[2].imshow(sagittal)
+        axes[2].set_title("Sagittal")
+        axes[2].axis('off')
+        
+        text_str = (
+            f"Patient ID: {patient_id} | Dataset: {dataset_name} | Epoch: {epoch}\n"
+            f"Dice: {metrics.get('val_dice', 0):.4f} | IoU: {metrics.get('val_iou', 0):.4f} | "
+            f"Precision: {metrics.get('val_precision', 0):.4f} | Recall: {metrics.get('val_recall', 0):.4f}\n"
+            f"Sensitivity: {metrics.get('val_sensitivity', 0):.4f} | Specificity: {metrics.get('val_specificity', 0):.4f}\n"
+            f"HD95: {metrics.get('val_hd95', 0):.4f} | Surface Dice: {metrics.get('val_asd', 0):.4f}"
+        )
+        
+        fig.suptitle(text_str, fontsize=10, y=0.98, color='white', backgroundcolor='black')
+        
+        out_path = save_dir / "qualitative" / f"{patient_id}_epoch_{epoch}.png"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        plt.tight_layout()
+        plt.savefig(out_path, dpi=300, bbox_inches='tight', facecolor='black')
+        plt.close(fig)

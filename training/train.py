@@ -81,7 +81,7 @@ from training.config import TrainerConfig
 # Logger
 # ==========================================================
 
-LOGGER = logging.getLogger("HybridMedNeXt++")
+LOGGER = logging.getLogger("HybridSegFormer-UMamba")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -216,7 +216,7 @@ def print_environment():
     print()
 
     print("=" * 80)
-    print("HybridMedNeXt++ Research Framework")
+    print("HybridSegFormer-UMamba Research Framework")
     print("=" * 80)
 
     print(f"Python Version : {platform.python_version()}")
@@ -407,6 +407,8 @@ def build_trainer_config(cfg: Dict[str, Any]) -> TrainerConfig:
         swa_enabled=cfg.get("swa_enabled", False),
 
         disable_dashboard=cfg.get("disable_dashboard", False),
+        
+        full_config=cfg.get("full_config", None),
 
     )
 
@@ -425,7 +427,7 @@ def build_framework(configs):
     # Model
     # ------------------------------------------------------
 
-    LOGGER.info("Building HybridMedNeXt++")
+    LOGGER.info("Building HybridSegFormer-UMamba")
 
     model = build_model(configs["model"])
 
@@ -473,6 +475,8 @@ def build_framework(configs):
         ),
 
         dataset_config=configs["dataset"],
+        
+        fold=configs["training"].get("fold", None),
 
     )
 
@@ -534,6 +538,13 @@ def build_framework(configs):
 
     )
 
+    # Pass full configs into trainer config
+    full_cfg = {k: v for k, v in configs.items() if k != "training"}
+    full_cfg["training"] = {k: v for k, v in configs["training"].items()}
+    # Ensure augmentation config dictionary is present instead of just path
+    full_cfg["augmentation"] = transform_factory.get_config_dict()
+    configs["training"]["full_config"] = full_cfg
+    
     trainer_cfg = build_trainer_config(
         configs["training"]
     )

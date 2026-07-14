@@ -1,4 +1,5 @@
-experiment_name: "3D_Hemorrhage_MedNeXt"
+experiment_name: "3D_Hemorrhage_HybridSegFormer_UMamba"
+fold: 0
 seed: 42
 deterministic: true
 epochs: 250

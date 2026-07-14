@@ -50,6 +50,7 @@ class DataLoaderConfig:
     seed: int = 42
     is_distributed: bool = False
     dataset_config: Optional[Any] = None
+    fold: Optional[int] = None
 
 
 # ===========================================================================
@@ -237,9 +238,8 @@ class BrainHemorrhageDataModule:
         dataset = BrainHemorrhageDataset(
 
             mode="train",
-
+            fold=self.config.fold,
             config=self.config.dataset_config,
-
             transform=self.train_transforms,
 
         )
@@ -272,9 +272,8 @@ class BrainHemorrhageDataModule:
         dataset = BrainHemorrhageDataset(
 
             mode="val",
-
+            fold=self.config.fold,
             config=self.config.dataset_config,
-
             transform=self.val_transforms,
 
         )

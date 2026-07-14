@@ -76,7 +76,7 @@ class ResearchFrameworkCallback(TrainerCallback):
         )
         
         # Header
-        layout["header"].update(Panel(f"[bold cyan]HybridMedNeXt++ Research Dashboard | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
+        layout["header"].update(Panel(f"[bold cyan]HybridSegFormer-UMamba Research Dashboard | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
         
         # Hardware
         mem = torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0
@@ -95,6 +95,10 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_row("Loss", f"{self.current_train_loss:.4f}", f"{self.val_metrics.get('val_loss', 0.0):.4f}")
         metric_table.add_row("Dice", "-", f"{self.val_metrics.get('val_dice', 0.0):.4f}")
         metric_table.add_row("IoU", "-", f"{self.val_metrics.get('val_iou', 0.0):.4f}")
+        metric_table.add_row("Precision", "-", f"{self.val_metrics.get('val_precision', 0.0):.4f}")
+        metric_table.add_row("Recall", "-", f"{self.val_metrics.get('val_recall', 0.0):.4f}")
+        metric_table.add_row("Sensitivity", "-", f"{self.val_metrics.get('val_sensitivity', 0.0):.4f}")
+        metric_table.add_row("Specificity", "-", f"{self.val_metrics.get('val_specificity', 0.0):.4f}")
         metric_table.add_row("HD95", "-", f"{self.val_metrics.get('val_hd95', 0.0):.4f}")
         metric_table.add_row("Surface Dice", "-", f"{self.val_metrics.get('val_asd', 0.0):.4f}")
         
@@ -115,6 +119,9 @@ class ResearchFrameworkCallback(TrainerCallback):
             stats_table.add_row("Improv. Since Best", imp_str)
         else:
             stats_table.add_row("Improv. Since Best", "-")
+            
+        stats_table.add_row("Gradient Norm", f"{self.val_metrics.get('grad_norm', 0.0):.4f}")
+        stats_table.add_row("Checkpoint Status", "Saved" if epochs_since_best == 0 else "Skipped")
             
         layout["stats"].update(Panel(stats_table, title="[blue]Experiment Stats[/blue]"))
         
@@ -137,6 +144,30 @@ class ResearchFrameworkCallback(TrainerCallback):
     def on_fit_end(self, trainer) -> None:
         if getattr(self, "live", None) is not None:
             self.live.stop()
+            
+        # Phase 10: Automatic Post-Training Qualitative Visualization
+        logger.info("Generating Final Post-Training Visualizations...")
+        if hasattr(trainer, '_vis_batch') and trainer._vis_batch is not None:
+            images, preds, masks = trainer._vis_batch
+            
+            if isinstance(preds, dict):
+                pred_tensor = preds.get("full", list(preds.values())[-1])
+            elif isinstance(preds, (list, tuple)):
+                pred_tensor = preds[-1]
+            else:
+                pred_tensor = preds
+                
+            Visualizer.generate_qualitative_report(
+                save_dir=self.save_dir,
+                patient_id="val_sample_0",
+                image=images,
+                pred=pred_tensor,
+                target=masks,
+                metrics=self.val_metrics,
+                epoch=self.current_epoch,
+                dataset_name=getattr(self.config, "dataset_name", "CQ500")
+            )
+            logger.info(f"Post-Training Visualizations saved to {self.save_dir}/qualitative")
 
     def on_epoch_begin(self, trainer, epoch: int):
         self.current_epoch = epoch

@@ -8,7 +8,7 @@ from torch import Tensor
 from typing import List
 from .utils import init_weights_kaiming
 
-__all__ = ["CrossScaleFusion"]
+__all__ = ["CrossScaleFusion", "CrossScaleFusion3D"]
 
 
 class _BiFPNFusion(nn.Module):
@@ -86,3 +86,56 @@ class CrossScaleFusion(nn.Module):
             fused = self.bu_convs[i-1](fused_weight)
             bu.append(fused)
         return bu  # [P0, P1, P2, P3, P4]
+
+class CrossScaleFusion3D(nn.Module):
+    def __init__(self, in_dims: List[int], out_dim: int = 256):
+        super().__init__()
+        self.in_dims = in_dims
+        self.out_dim = out_dim
+        
+        # Project all encoder scales to a common dimension
+        self.projs = nn.ModuleList([
+            nn.Conv3d(dim, out_dim, 1, bias=False) for dim in in_dims
+        ])
+        
+        self.norms = nn.ModuleList([
+            nn.BatchNorm3d(out_dim) for _ in in_dims
+        ])
+        
+        # Learnable weights for each scale during fusion
+        self.fusion_weights = nn.Parameter(torch.ones(len(in_dims), dtype=torch.float32))
+        self.relu = nn.ReLU()
+        
+        # Post-fusion convolution
+        self.post_conv = nn.Sequential(
+            nn.Conv3d(out_dim, out_dim, 3, padding=1, bias=False),
+            nn.BatchNorm3d(out_dim),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, features: List[torch.Tensor]) -> torch.Tensor:
+        """
+        Fuses E1, E2, E3, E4 into a single representation at the highest resolution (or a target resolution).
+        Here we fuse them to the resolution of E1.
+        """
+        assert len(features) == len(self.in_dims)
+        
+        target_size = features[0].shape[2:] # (D, H, W) of E1
+        
+        fused = 0
+        weights = torch.softmax(self.fusion_weights, dim=0)
+        
+        for i, (feat, proj, norm, w) in enumerate(zip(features, self.projs, self.norms, weights)):
+            # Project
+            x = proj(feat)
+            x = norm(x)
+            x = self.relu(x)
+            
+            # Upsample if necessary
+            if x.shape[2:] != target_size:
+                x = nn.functional.interpolate(x, size=target_size, mode='trilinear', align_corners=False)
+                
+            fused = fused + w * x
+            
+        fused = self.post_conv(fused)
+        return fused
