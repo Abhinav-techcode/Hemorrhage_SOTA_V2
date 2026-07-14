@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Union, Tuple
 import torch
 import torch.nn as nn
 from monai.losses import (
-    DiceLoss, GeneralizedDiceLoss, DiceCELoss, DiceFocalLoss, FocalLoss, TverskyLoss
+    DiceLoss, DiceFocalLoss, FocalLoss, TverskyLoss
 )
 
 try:
@@ -39,12 +39,6 @@ class LossRegistry:
 @LossRegistry.register("dice")
 class MonaiDice(DiceLoss): pass
 
-@LossRegistry.register("generalized_dice")
-class MonaiGenDice(GeneralizedDiceLoss): pass
-
-@LossRegistry.register("dice_ce")
-class MonaiDiceCE(DiceCELoss): pass
-
 @LossRegistry.register("dice_focal")
 class MonaiDiceFocal(DiceFocalLoss): pass
 
@@ -53,12 +47,6 @@ class MonaiFocal(FocalLoss): pass
 
 @LossRegistry.register("tversky")
 class MonaiTversky(TverskyLoss): pass
-
-@LossRegistry.register("bce")
-class BCEWithLogitsWrap(nn.BCEWithLogitsLoss): pass
-
-@LossRegistry.register("ce")
-class CrossEntropyWrap(nn.CrossEntropyLoss): pass
 
 @LossRegistry.register("boundary")
 class SafeBoundaryLoss(nn.Module):
@@ -72,6 +60,31 @@ class SafeBoundaryLoss(nn.Module):
             
     def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.loss(p, t)
+
+# --- Stubs for Future Active Implementations ---
+@LossRegistry.register("surface")
+class SurfaceLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+        pass
+    def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError("SurfaceLoss is not yet implemented.")
+
+@LossRegistry.register("topk")
+class TopKLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+        pass
+    def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError("TopKLoss is not yet implemented.")
+
+@LossRegistry.register("hausdorff")
+class HausdorffLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super().__init__()
+        pass
+    def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError("HausdorffLoss is not yet implemented.")
 
 # --- Dynamic Hybrid Loss Engine ---
 class DynamicHybridLoss(nn.Module):
@@ -99,43 +112,30 @@ class DynamicHybridLoss(nn.Module):
             w = torch.softmax(self.weights, dim=0) if self.strategy == "learnable" else (self.weights / self.weights.sum())
             return sum(w[i] * loss_vals[i] for i in range(len(self.losses)))
 
-    def forward(self, preds: Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor, ...], Dict[str, torch.Tensor]], target: torch.Tensor) -> Dict[str, torch.Tensor]:
-        if isinstance(preds, dict): preds = list(preds.values())
-        if isinstance(preds, torch.Tensor): preds = [preds]
+    def forward(self, predictions: Union[torch.Tensor, Tuple[torch.Tensor, ...], List[torch.Tensor]], targets: torch.Tensor) -> Dict[str, torch.Tensor]:
+        if isinstance(predictions, torch.Tensor):
+            predictions = [predictions]
 
-        # Sort predictions by spatial volume (coarsest to finest) to ensure deterministic ordering
-        preds = sorted(preds, key=lambda x: x.shape[-1] * x.shape[-2] * x.shape[-3])
-
-        # Deep Supervision Decay Weights
-        # Finest resolution gets the highest weight
-        ds_weights = [1.0 / (2 ** i) for i in range(len(preds))]
-        ds_weights = ds_weights[::-1]
-        ds_total = sum(ds_weights)
-        ds_weights = [w / ds_total for w in ds_weights]
-
-        loss_breakdown = {}
         total_loss = 0.0
+        loss_dict = {}
 
-        for ds_idx, pred in enumerate(preds):
-            if pred.shape[2:] != target.shape[2:]:
-                pred = torch.nn.functional.interpolate(
-                    pred,
-                    size=target.shape[2:],
-                    mode="trilinear",
-                    align_corners=False
-                )
-            scale_loss_vals = [criterion(pred, target) for criterion in self.losses]
-            scale_total = self._compute_weighted(scale_loss_vals)
+        # Deep Supervision logic
+        # For multiple outputs, typically the first is full resolution, others are lower res
+        # Weight them decaying: 1.0, 0.5, 0.25...
+        for i, pred in enumerate(predictions):
+            # Upsample pred if necessary
+            if pred.shape[2:] != targets.shape[2:]:
+                pred = nn.functional.interpolate(pred, size=targets.shape[2:], mode='trilinear', align_corners=False)
+
+            layer_loss_vals = [loss_fn(pred, targets) for loss_fn in self.losses]
+            layer_total = self._compute_weighted(layer_loss_vals)
             
-            for i, l_val in enumerate(scale_loss_vals):
-                loss_breakdown[f"{self.names[i]}_ds{ds_idx}"] = l_val.detach()
+            # Deep supervision weight (1.0 for first, then halved)
+            weight = 1.0 / (2 ** i)
+            total_loss += weight * layer_total
             
-            total_loss = total_loss + (scale_total * ds_weights[ds_idx])
+            if i == 0:
+                loss_dict = {name: val for name, val in zip(self.names, layer_loss_vals)}
 
-        loss_breakdown["total"] = total_loss
-        return loss_breakdown
-
-class LossFactory:
-    @staticmethod
-    def build(config: dict) -> nn.Module:
-        return DynamicHybridLoss(config.get("losses", []), config.get("weighting_strategy", "static"))
+        loss_dict["total"] = total_loss
+        return loss_dict
