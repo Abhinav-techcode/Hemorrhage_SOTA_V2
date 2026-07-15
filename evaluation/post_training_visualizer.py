@@ -186,7 +186,7 @@ class PostTrainingVisualizer:
         else:
             self.device = torch.device("cpu")
             
-    def run_visualization_pipeline(self, limit_cases=10):
+    def run_visualization_pipeline(self, limit_cases=None):
         """Main entry point for Milestone D."""
         logger.info("=" * 80)
         logger.info("Milestone D: Starting Automated Post-Training Visualization Pipeline")
@@ -478,7 +478,7 @@ class PostTrainingVisualizer:
                 x_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
                 
                 # Render 2D Montages
-                render_case_montage(pid, patient_data, img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.png")
+                render_case_montage(pid, patient_data, img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.pdf")
                 
                 # 3D Mesh Extraction via Marching Cubes
                 try:
@@ -556,7 +556,7 @@ class PostTrainingVisualizer:
             plt.xlabel("Case Index")
             plt.ylabel("Dice Score")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_1_Dice_Bar.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_1_Dice_Bar.pdf", dpi=300)
             plt.close()
             
             # 2. Confusion Matrix Heatmap (Total Voxels)
@@ -569,7 +569,7 @@ class PostTrainingVisualizer:
             sns.heatmap(cm, annot=True, fmt=".2e", cmap="Blues", xticklabels=["Pred +", "Pred -"], yticklabels=["GT +", "GT -"])
             plt.title("Aggregate Voxel Confusion Matrix")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_2_Confusion_Matrix.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_2_Confusion_Matrix.pdf", dpi=300)
             plt.close()
             
             # 3. Precision vs Recall Scatter
@@ -577,7 +577,7 @@ class PostTrainingVisualizer:
             sns.scatterplot(x="Recall", y="Precision", data=df, hue="Dice", palette="coolwarm", s=100)
             plt.title("Precision vs Recall")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_3_Precision_Recall.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_3_Precision_Recall.pdf", dpi=300)
             plt.close()
             
             # 4. Dice vs GT Volume
@@ -586,7 +586,7 @@ class PostTrainingVisualizer:
             plt.title("Dice vs Ground Truth Volume")
             plt.xscale("log")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_4_Dice_vs_Volume.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_4_Dice_vs_Volume.pdf", dpi=300)
             plt.close()
             
             # 5. Stacked Bar (FP vs FN)
@@ -596,7 +596,7 @@ class PostTrainingVisualizer:
             plt.xlabel("Case Index (Sorted by Dice)")
             plt.ylabel("Voxel Count")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_5_Stacked_FP_FN.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_5_Stacked_FP_FN.pdf", dpi=300)
             plt.close()
             
             # 6. Boxplot of Dice by Volume Group
@@ -609,7 +609,7 @@ class PostTrainingVisualizer:
                 sns.boxplot(y="Dice", data=df, color="cyan")
                 plt.title("Dice Score")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_6_Dice_Boxplot.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_6_Dice_Boxplot.pdf", dpi=300)
             plt.close()
             
             # 7. Metric Correlation Heatmap
@@ -619,10 +619,10 @@ class PostTrainingVisualizer:
             sns.heatmap(corr, annot=True, cmap="RdBu_r", vmin=-1, vmax=1, fmt=".2f")
             plt.title("Metric Correlation Heatmap")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_7_Correlation_Heatmap.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_7_Correlation_Heatmap.pdf", dpi=300)
             plt.close()
 
-def trigger_visualization_pipeline(exp_dir: str | Path, config: dict, limit_cases=10):
+def trigger_visualization_pipeline(exp_dir: str | Path, config: dict, limit_cases=None):
     """Wrapper function to be called from train.py"""
     try:
         visualizer = PostTrainingVisualizer(exp_dir, config)
@@ -638,7 +638,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Standalone Post-Training Visualization")
     parser.add_argument("--experiment", type=str, required=True, help="Path to the experiment directory (e.g., outputs/EXP_...)")
-    parser.add_argument("--limit", type=int, default=10, help="Max cases to run inference on (to save time)")
+    parser.add_argument("--limit", type=int, default=None, help="Max cases to run inference on (to save time)")
     
     args = parser.parse_args()
     
