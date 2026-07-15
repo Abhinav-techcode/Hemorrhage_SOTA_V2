@@ -1,10 +1,7 @@
-architecture: "hybrid_segformer_umamba"
+architecture: "umamba_bot"
 params:
   in_channels: 3
   out_channels: 1
-  spatial_dims: 3
+  features: [32, 64, 128, 256, 320]
+  mamba_d_state: 16
   deep_supervision: true
-  fusion_dim: 96
-  bridge_dim: 96
-  embed_dims: [64, 128, 320, 512]
-  decoder_dims: [256, 128, 64]
