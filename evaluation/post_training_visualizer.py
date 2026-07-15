@@ -29,7 +29,30 @@ def to_rgb_base(img, apply_window=False):
             img = (img - min_val) / (max_val - min_val)
     return np.stack([img, img, img], axis=-1)
 
-def render_case_montage(pid, dice_score, img_np, mask_np, pred_bin, save_path):
+def generate_diagnosis_text(metrics):
+    dice = metrics.get('Dice', 0)
+    recall = metrics.get('Recall', 0)
+    precision = metrics.get('Precision', 0)
+    gt_vol = metrics.get('GT_Volume', 0)
+    fp = metrics.get('FP', 0)
+    fn = metrics.get('FN', 0)
+    
+    if dice > 0.8:
+        return "Clean high-agreement case with accurate segmentation."
+    elif gt_vol < 1000 and dice < 0.5:
+        return "Model struggled to segment small lesion structure."
+    elif recall < 0.5 and fp < fn:
+        return "Severe under-segmentation; missed significant hemorrhage portions."
+    elif precision < 0.5 and fp > fn:
+        return "Severe over-segmentation; spurious false-positive clusters present."
+    elif fp > fn * 2:
+        return "Tendency toward over-segmentation and false-positive boundaries."
+    elif fn > fp * 2:
+        return "Tendency toward under-segmentation; missing lesion boundaries."
+    else:
+        return "Moderate agreement with mixed boundary discrepancies."
+
+def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
     import matplotlib.pyplot as plt
     import matplotlib.patches as mpatches
     from skimage.segmentation import mark_boundaries
@@ -90,7 +113,28 @@ def render_case_montage(pid, dice_score, img_np, mask_np, pred_bin, save_path):
         # Panel 3: Stats / Legend
         axes[row, 3].axis('off')
         if row == 0:
-            axes[row, 3].text(0.1, 0.8, f"Patient: {pid}\nDice: {dice_score:.4f}", fontsize=14, fontweight='bold', transform=axes[row, 3].transAxes)
+            dice_score = metrics.get('Dice', 0)
+            iou_score = metrics.get('IoU', 0)
+            tp, fp, fn, tn = metrics.get('TP', 0), metrics.get('FP', 0), metrics.get('FN', 0), metrics.get('TN', 0)
+            prec, rec, spec = metrics.get('Precision', 0), metrics.get('Recall', 0), metrics.get('Specificity', 0)
+            gt_vol, pred_vol = metrics.get('GT_Volume', 0), metrics.get('Pred_Volume', 0)
+            
+            over_seg = (fp / gt_vol * 100) if gt_vol > 0 else 0
+            under_seg = (fn / gt_vol * 100) if gt_vol > 0 else 0
+            
+            diagnosis = generate_diagnosis_text(metrics)
+            
+            stats_text = (
+                f"Patient: {pid}\n"
+                f"Dice: {dice_score:.4f} | IoU: {iou_score:.4f}\n"
+                f"Prec: {prec:.4f} | Rec: {rec:.4f} | Spec: {spec:.4f}\n"
+                f"TP: {tp} | FP: {fp} | FN: {fn} | TN: {tn}\n"
+                f"GT Vol: {gt_vol} | Pred Vol: {pred_vol}\n"
+                f"Over-seg: +{over_seg:.1f}% | Under-seg: -{under_seg:.1f}%\n\n"
+                f"Diagnosis:\n{diagnosis}"
+            )
+            
+            axes[row, 3].text(0.05, 0.95, stats_text, fontsize=11, verticalalignment='top', transform=axes[row, 3].transAxes, wrap=True)
             
             legend_elements = [
                 mpatches.Patch(color=color_tp, label='True Positive (TP)'),
@@ -98,7 +142,7 @@ def render_case_montage(pid, dice_score, img_np, mask_np, pred_bin, save_path):
                 mpatches.Patch(color=color_fn, label='False Negative (FN)'),
                 mpatches.Patch(facecolor='none', edgecolor=(0, 1, 1), linewidth=2, label='Ground Truth')
             ]
-            axes[row, 3].legend(handles=legend_elements, loc='center', fontsize=12, frameon=False)
+            axes[row, 3].legend(handles=legend_elements, loc='lower left', fontsize=11, frameon=False, bbox_to_anchor=(0.05, 0.05))
 
     plt.tight_layout()
     plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='white')
@@ -128,9 +172,10 @@ class PostTrainingVisualizer:
         self.worst_cases_dir = self.qual_dir / "worst_cases"
         self.median_cases_dir = self.qual_dir / "median_cases"
         self.random_cases_dir = self.qual_dir / "random_cases"
+        self.all_cases_dir = self.qual_dir / "all_cases"
         self.summary_dir = self.qual_dir / "summary"
         
-        for d in [self.best_cases_dir, self.worst_cases_dir, self.median_cases_dir, self.random_cases_dir, self.summary_dir, self.plots_dir, self.metrics_dir]:
+        for d in [self.best_cases_dir, self.worst_cases_dir, self.median_cases_dir, self.random_cases_dir, self.all_cases_dir, self.summary_dir, self.plots_dir, self.metrics_dir]:
             d.mkdir(parents=True, exist_ok=True)
             
         # Determine device
@@ -300,12 +345,35 @@ class PostTrainingVisualizer:
                 fg_pred = (val_outputs_bin.sum() / val_outputs_bin.numel()).item()
                 fg_gt = (val_labels.sum() / val_labels.numel()).item()
                 
+                pred_bool = val_outputs_bin.bool()
+                gt_bool = val_labels.bool()
+                tp = (pred_bool & gt_bool).sum().item()
+                fp = (pred_bool & ~gt_bool).sum().item()
+                fn = (~pred_bool & gt_bool).sum().item()
+                tn = (~pred_bool & ~gt_bool).sum().item()
+                
+                precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+                recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+                specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+                
+                pred_vol = pred_bool.sum().item()
+                gt_vol = gt_bool.sum().item()
+                
                 patient_id = Path(data_dicts[i]["image"]).name.replace(".nii.gz", "").replace(".nii", "")
                 
                 results.append({
                     "PatientID": patient_id,
                     "Dice": dice,
                     "IoU": iou,
+                    "Precision": precision,
+                    "Recall": recall,
+                    "Specificity": specificity,
+                    "TP": tp,
+                    "FP": fp,
+                    "FN": fn,
+                    "TN": tn,
+                    "Pred_Volume": pred_vol,
+                    "GT_Volume": gt_vol,
                     "FG_Pred_Pct": fg_pred,
                     "FG_GT_Pct": fg_gt,
                     "Total_Error_Voxels": torch.abs(val_outputs_bin - val_labels).sum().item(),
@@ -335,7 +403,8 @@ class PostTrainingVisualizer:
             "best": best_cases,
             "worst": worst_cases,
             "median": median_cases,
-            "random": random_cases
+            "random": random_cases,
+            "all": df_sorted.to_dict('records')
         }
         
         with open(self.qual_dir / "selected_cases.json", "w") as f:
@@ -409,7 +478,7 @@ class PostTrainingVisualizer:
                 x_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
                 
                 # Render 2D Montages
-                render_case_montage(pid, patient_data["Dice"], img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.png")
+                render_case_montage(pid, patient_data, img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.png")
                 
                 # 3D Mesh Extraction via Marching Cubes
                 try:
@@ -432,14 +501,43 @@ class PostTrainingVisualizer:
         
         with open(report_path, "w") as f:
             f.write("# Qualitative Research Report\n\n")
-            f.write("## Overview\nThis report analyzes the best, worst, and median performance cases to identify systemic failure patterns and structural successes.\n\n")
-            f.write("## Case Groupings\n")
-            f.write(f"- **Best Cases**: {', '.join([c['PatientID'] for c in selected_cases['best']])}\n")
-            f.write(f"- **Worst Cases**: {', '.join([c['PatientID'] for c in selected_cases['worst']])}\n")
-            f.write(f"- **Median Cases**: {', '.join([c['PatientID'] for c in selected_cases['median']])}\n")
-            f.write(f"- **Random (Fixed Seed) Cases**: {', '.join([c['PatientID'] for c in selected_cases['random']])}\n")
-            f.write("\n## Analysis & Recommendations\n")
-            f.write("- *Post-training visuals are saved as high-res PNG montages and 3D OBJ meshes.*\n")
+            f.write("## Overview\nThis report analyzes the performance across all evaluated cases to identify systemic failure patterns and structural successes.\n\n")
+            
+            f.write("## Detailed Case Analysis\n\n")
+            
+            all_cases = selected_cases.get("all", df.to_dict('records'))
+            
+            for c in all_cases:
+                pid = c['PatientID']
+                dice = c.get('Dice', 0)
+                iou = c.get('IoU', 0)
+                prec = c.get('Precision', 0)
+                rec = c.get('Recall', 0)
+                tp = c.get('TP', 0)
+                fp = c.get('FP', 0)
+                fn = c.get('FN', 0)
+                
+                diagnosis = generate_diagnosis_text(c)
+                
+                f.write(f"### Case: {pid}\n")
+                f.write(f"- **Metrics**: Dice: {dice:.4f} | IoU: {iou:.4f} | Precision: {prec:.4f} | Recall: {rec:.4f}\n")
+                f.write(f"- **Voxel Stats**: TP: {tp} | FP: {fp} | FN: {fn}\n")
+                f.write(f"- **Diagnosis**: {diagnosis}\n\n")
+
+            f.write("## Aggregate Findings\n")
+            
+            avg_dice = df['Dice'].mean()
+            avg_fp = df['FP'].mean()
+            avg_fn = df['FN'].mean()
+            
+            f.write(f"Across the evaluated cases, the model achieved an average Dice score of {avg_dice:.4f}. ")
+            if avg_fp > avg_fn * 1.5:
+                f.write("Overall, the model exhibits a tendency toward over-segmentation and false-positive boundaries.")
+            elif avg_fn > avg_fp * 1.5:
+                f.write("Overall, the model exhibits a tendency toward under-segmentation and false-negative regions.")
+            else:
+                f.write("Overall, the model maintains a relatively balanced trade-off between sensitivity and specificity.")
+            f.write("\n")
 
     def _generate_publication_figures(self, df: pd.DataFrame):
         """Generate publication-ready quantitative and qualitative figures."""
@@ -448,23 +546,80 @@ class PostTrainingVisualizer:
         # Set publication-style aesthetics
         sns.set_theme(style="whitegrid", context="paper", font_scale=1.2)
         
-        if "Dice" in df.columns:
-            plt.figure(figsize=(8, 6))
-            sns.histplot(df["Dice"], bins=10, kde=True, color="blue")
-            plt.title("Distribution of Validation Dice Scores")
-            plt.xlabel("Dice Score")
-            plt.ylabel("Count")
+        if "Dice" in df.columns and len(df) > 0:
+            df_sorted = df.sort_values(by="Dice", ascending=False).reset_index(drop=True)
+            
+            # 1. Dice score bar chart (sorted)
+            plt.figure(figsize=(10, 6))
+            sns.barplot(x=df_sorted.index, y="Dice", data=df_sorted, palette="viridis")
+            plt.title("Dice Score per Case (Sorted)")
+            plt.xlabel("Case Index")
+            plt.ylabel("Dice Score")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_1_DiceDistribution.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_1_Dice_Bar.png", dpi=300)
             plt.close()
             
-            plt.figure(figsize=(8, 6))
-            sns.scatterplot(x="Dice", y="Total_Error_Voxels", data=df, color="red")
-            plt.title("Error Volume vs Dice Performance")
-            plt.xlabel("Dice Score")
-            plt.ylabel("Total Error Voxels (FP + FN)")
+            # 2. Confusion Matrix Heatmap (Total Voxels)
+            plt.figure(figsize=(6, 5))
+            total_tp = df["TP"].sum()
+            total_fp = df["FP"].sum()
+            total_fn = df["FN"].sum()
+            total_tn = df["TN"].sum()
+            cm = np.array([[total_tp, total_fn], [total_fp, total_tn]])
+            sns.heatmap(cm, annot=True, fmt=".2e", cmap="Blues", xticklabels=["Pred +", "Pred -"], yticklabels=["GT +", "GT -"])
+            plt.title("Aggregate Voxel Confusion Matrix")
             plt.tight_layout()
-            plt.savefig(self.summary_dir / "Figure_2_ErrorAnalysis.png", dpi=300)
+            plt.savefig(self.summary_dir / "Figure_2_Confusion_Matrix.png", dpi=300)
+            plt.close()
+            
+            # 3. Precision vs Recall Scatter
+            plt.figure(figsize=(8, 6))
+            sns.scatterplot(x="Recall", y="Precision", data=df, hue="Dice", palette="coolwarm", s=100)
+            plt.title("Precision vs Recall")
+            plt.tight_layout()
+            plt.savefig(self.summary_dir / "Figure_3_Precision_Recall.png", dpi=300)
+            plt.close()
+            
+            # 4. Dice vs GT Volume
+            plt.figure(figsize=(8, 6))
+            sns.scatterplot(x="GT_Volume", y="Dice", data=df, color="purple", s=100)
+            plt.title("Dice vs Ground Truth Volume")
+            plt.xscale("log")
+            plt.tight_layout()
+            plt.savefig(self.summary_dir / "Figure_4_Dice_vs_Volume.png", dpi=300)
+            plt.close()
+            
+            # 5. Stacked Bar (FP vs FN)
+            plt.figure(figsize=(10, 6))
+            df_sorted[['FP', 'FN']].plot(kind='bar', stacked=True, color=['#E74C3C', '#F39C12'], figsize=(10, 6))
+            plt.title("False Positive vs False Negative Volume per Case")
+            plt.xlabel("Case Index (Sorted by Dice)")
+            plt.ylabel("Voxel Count")
+            plt.tight_layout()
+            plt.savefig(self.summary_dir / "Figure_5_Stacked_FP_FN.png", dpi=300)
+            plt.close()
+            
+            # 6. Boxplot of Dice by Volume Group
+            plt.figure(figsize=(8, 6))
+            if df['GT_Volume'].nunique() >= 3:
+                df['Volume_Group'] = pd.qcut(df['GT_Volume'], q=3, labels=['Small', 'Medium', 'Large'], duplicates='drop')
+                sns.boxplot(x="Volume_Group", y="Dice", data=df, palette="Set2")
+                plt.title("Dice Score by Lesion Size")
+            else:
+                sns.boxplot(y="Dice", data=df, color="cyan")
+                plt.title("Dice Score")
+            plt.tight_layout()
+            plt.savefig(self.summary_dir / "Figure_6_Dice_Boxplot.png", dpi=300)
+            plt.close()
+            
+            # 7. Metric Correlation Heatmap
+            plt.figure(figsize=(8, 6))
+            corr_cols = ["Dice", "IoU", "Precision", "Recall", "GT_Volume", "Total_Error_Voxels", "FP", "FN"]
+            corr = df[corr_cols].corr()
+            sns.heatmap(corr, annot=True, cmap="RdBu_r", vmin=-1, vmax=1, fmt=".2f")
+            plt.title("Metric Correlation Heatmap")
+            plt.tight_layout()
+            plt.savefig(self.summary_dir / "Figure_7_Correlation_Heatmap.png", dpi=300)
             plt.close()
 
 def trigger_visualization_pipeline(exp_dir: str | Path, config: dict, limit_cases=10):
