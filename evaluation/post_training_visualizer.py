@@ -17,6 +17,10 @@ import seaborn as sns
 import nibabel as nib
 from skimage import measure
 
+# Add project root to path so we can import models when running as standalone script
+import sys
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 # Import framework dependencies
 from models.model_factory import build_model
 from datasets.transforms import TransformFactory
