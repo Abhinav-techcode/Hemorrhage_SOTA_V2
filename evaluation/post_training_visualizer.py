@@ -335,18 +335,26 @@ class PostTrainingVisualizer:
                     axes[row, 1].set_title(f"{name} Ground Truth")
                     axes[row, 1].axis('off')
                     
+                    # Calculate TP, FP, FN, TN masks
+                    tp_mask = (pred_s.T == 1) & (gt_s.T == 1)
+                    fp_mask = (pred_s.T == 1) & (gt_s.T == 0)
+                    fn_mask = (pred_s.T == 0) & (gt_s.T == 1)
+                    tn_mask = (pred_s.T == 0) & (gt_s.T == 0)
+
+                    # 3. Prediction Image (Shows what the model predicted, split into TP and FP)
                     axes[row, 2].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 2].imshow(np.ma.masked_where(pred_s.T == 0, pred_s.T), cmap="Reds", alpha=0.5, origin="lower")
-                    axes[row, 2].set_title(f"{name} Prediction")
+                    axes[row, 2].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower")
+                    axes[row, 2].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower")
+                    axes[row, 2].set_title(f"{name} Prediction (TP=B, FP=R)")
                     axes[row, 2].axis('off')
                     
-                    diff = gt_s.T - pred_s.T
+                    # 4. Full Evaluation Difference Map (TP, FP, FN, TN)
                     axes[row, 3].imshow(img_s.T, cmap="gray", origin="lower")
-                    # False Negatives (Green)
-                    axes[row, 3].imshow(np.ma.masked_where(diff != 1, diff), cmap="Greens", alpha=0.7, origin="lower")
-                    # False Positives (Red)
-                    axes[row, 3].imshow(np.ma.masked_where(diff != -1, diff), cmap="Reds", alpha=0.7, origin="lower")
-                    axes[row, 3].set_title(f"{name} Difference (FN=G, FP=R)")
+                    axes[row, 3].imshow(np.ma.masked_where(~tn_mask, tn_mask), cmap="Purples", alpha=0.2, origin="lower")
+                    axes[row, 3].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower")
+                    axes[row, 3].imshow(np.ma.masked_where(~fn_mask, fn_mask), cmap="Greens", alpha=0.6, origin="lower")
+                    axes[row, 3].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower")
+                    axes[row, 3].set_title(f"{name} Eval (TP=B, FP=R, FN=G, TN=P)")
                     axes[row, 3].axis('off')
                 
                 plt.suptitle(f"{category.capitalize()} Case: {pid} | Dice: {patient_data['Dice']:.4f}")

@@ -52,19 +52,21 @@ class Mamba(nn.Module):
 
         delta = F.softplus(self.dt_proj(delta))
         
+        # Ensure everything is in float32 for numerical stability in the sequential scan
+        delta = delta.float()
         A = -torch.exp(self.A_log.float())
         D = self.D.float()
         
         deltaA = torch.exp(torch.einsum('b l d, d n -> b l d n', delta, A))
-        deltaB_u = torch.einsum('b l d, b l n, b l d -> b l d n', delta, B_t, x_proj)
+        deltaB_u = torch.einsum('b l d, b l n, b l d -> b l d n', delta, B_t.float(), x_proj.float())
         
-        h = torch.zeros(B, self.d_inner, self.d_state, device=x.device, dtype=x.dtype)
+        h = torch.zeros(B, self.d_inner, self.d_state, device=x.device, dtype=torch.float32)
         y = []
         for i in range(L):
             h = deltaA[:, i] * h + deltaB_u[:, i]
-            y.append(torch.einsum('b d n, b n -> b d', h, C_t[:, i]))
+            y.append(torch.einsum('b d n, b n -> b d', h, C_t[:, i].float()))
             
-        y = torch.stack(y, dim=1)
+        y = torch.stack(y, dim=1).to(dtype=x.dtype)
         y = y + x_proj * D
         y = y * F.silu(z)
         out = self.out_proj(y)
