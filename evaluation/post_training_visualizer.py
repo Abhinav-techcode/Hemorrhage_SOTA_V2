@@ -338,7 +338,7 @@ class PostTrainingVisualizer:
                     axes[row, 0].axis('off')
                     
                     axes[row, 1].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 1].imshow(np.ma.masked_where(gt_s.T == 0, gt_s.T), cmap="Greens", alpha=0.5, origin="lower")
+                    axes[row, 1].imshow(np.ma.masked_where(gt_s.T == 0, gt_s.T), cmap="Greens", alpha=0.5, origin="lower", vmin=0, vmax=1)
                     axes[row, 1].set_title(f"{name} Ground Truth")
                     axes[row, 1].axis('off')
                     
@@ -350,17 +350,17 @@ class PostTrainingVisualizer:
 
                     # 3. Prediction Image (Shows what the model predicted, split into TP and FP)
                     axes[row, 2].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 2].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower")
-                    axes[row, 2].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower")
+                    axes[row, 2].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower", vmin=0, vmax=1)
+                    axes[row, 2].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower", vmin=0, vmax=1)
                     axes[row, 2].set_title(f"{name} Prediction (TP=B, FP=R)")
                     axes[row, 2].axis('off')
                     
                     # 4. Full Evaluation Difference Map (TP, FP, FN, TN)
                     axes[row, 3].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 3].imshow(np.ma.masked_where(~tn_mask, tn_mask), cmap="Purples", alpha=0.2, origin="lower")
-                    axes[row, 3].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower")
-                    axes[row, 3].imshow(np.ma.masked_where(~fn_mask, fn_mask), cmap="Greens", alpha=0.6, origin="lower")
-                    axes[row, 3].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower")
+                    axes[row, 3].imshow(np.ma.masked_where(~tn_mask, tn_mask), cmap="Purples", alpha=0.2, origin="lower", vmin=0, vmax=1)
+                    axes[row, 3].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower", vmin=0, vmax=1)
+                    axes[row, 3].imshow(np.ma.masked_where(~fn_mask, fn_mask), cmap="Greens", alpha=0.6, origin="lower", vmin=0, vmax=1)
+                    axes[row, 3].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower", vmin=0, vmax=1)
                     axes[row, 3].set_title(f"{name} Eval (TP=B, FP=R, FN=G, TN=P)")
                     axes[row, 3].axis('off')
                 
