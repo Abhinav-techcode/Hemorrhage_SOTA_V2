@@ -1,0 +1,29 @@
+_wandb:
+    value:
+        cli_version: 0.28.0
+        e:
+            l1j6go90cdp386a2n98y64uejxdtmzcn:
+                codePath: test_wand.py
+                codePathLocal: test_wand.py
+                email: parveshkhandelwal4618@gmail.com
+                executable: /usr/bin/python
+                git:
+                    commit: aaaa6d2bc1663c5f8fafb19b17cc85058b0e68d5
+                    remote: https://github.com/Abhinav-techcode/Hemorrhage_SOTA_V2.git
+                host: dgxhnode5
+                os: Linux-5.15.0-1053-nvidia-x86_64-with-glibc2.35
+                program: /workspace/Hemorrhage_SOTA_V2/test_wand.py
+                python: CPython 3.10.12
+                root: /workspace/Hemorrhage_SOTA_V2
+                startedAt: "2026-07-12T11:16:23.194195Z"
+                writerId: l1j6go90cdp386a2n98y64uejxdtmzcn
+        m: []
+        python_version: 3.10.12
+        t:
+            "3":
+                - 2
+                - 13
+            "4": 3.10.12
+            "5": 0.28.0
+            "12": 0.28.0
+            "13": linux-x86_64

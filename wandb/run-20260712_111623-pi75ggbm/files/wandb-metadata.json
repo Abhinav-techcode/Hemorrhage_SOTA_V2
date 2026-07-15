@@ -1,0 +1,17 @@
+{
+  "os": "Linux-5.15.0-1053-nvidia-x86_64-with-glibc2.35",
+  "python": "CPython 3.10.12",
+  "startedAt": "2026-07-12T11:16:23.194195Z",
+  "program": "/workspace/Hemorrhage_SOTA_V2/test_wand.py",
+  "codePath": "test_wand.py",
+  "codePathLocal": "test_wand.py",
+  "git": {
+    "remote": "https://github.com/Abhinav-techcode/Hemorrhage_SOTA_V2.git",
+    "commit": "aaaa6d2bc1663c5f8fafb19b17cc85058b0e68d5"
+  },
+  "email": "parveshkhandelwal4618@gmail.com",
+  "root": "/workspace/Hemorrhage_SOTA_V2",
+  "host": "dgxhnode5",
+  "executable": "/usr/bin/python",
+  "writerId": "l1j6go90cdp386a2n98y64uejxdtmzcn"
+}
