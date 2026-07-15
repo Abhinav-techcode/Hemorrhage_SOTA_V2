@@ -16,6 +16,94 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import nibabel as nib
 from skimage import measure
+import matplotlib.patches as mpatches
+
+def to_rgb_base(img, apply_window=False):
+    """Convert grayscale to RGB, with optional basic windowing."""
+    if apply_window:
+        img = np.clip(img, 0, 80)
+        img = (img - 0) / 80
+    else:
+        min_val, max_val = img.min(), img.max()
+        if max_val > min_val:
+            img = (img - min_val) / (max_val - min_val)
+    return np.stack([img, img, img], axis=-1)
+
+def render_case_montage(pid, dice_score, img_np, mask_np, pred_bin, save_path):
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    from skimage.segmentation import mark_boundaries
+    
+    fig, axes = plt.subplots(3, 4, figsize=(16, 12))
+    
+    # Colors:
+    color_tp = np.array([0.18, 0.80, 0.44]) # green #2ECC71
+    color_fp = np.array([0.91, 0.30, 0.24]) # red #E74C3C
+    color_fn = np.array([0.95, 0.61, 0.07]) # amber #F39C12
+    
+    z_slice = np.argmax(mask_np.sum(axis=(0, 1))) if mask_np.sum() > 0 else img_np.shape[2] // 2
+    y_slice = np.argmax(mask_np.sum(axis=(0, 2))) if mask_np.sum() > 0 else img_np.shape[1] // 2
+    x_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
+    
+    slices = [(img_np, z_slice, 2, "Axial"), (img_np, y_slice, 1, "Coronal"), (img_np, x_slice, 0, "Sagittal")]
+    
+    for row, (vol, slc, axis, name) in enumerate(slices):
+        if axis == 2:
+            img_s, gt_s, pred_s = img_np[:, :, slc], mask_np[:, :, slc], pred_bin[:, :, slc]
+        elif axis == 1:
+            img_s, gt_s, pred_s = img_np[:, slc, :], mask_np[:, slc, :], pred_bin[:, slc, :]
+        else:
+            img_s, gt_s, pred_s = img_np[slc, :, :], mask_np[slc, :, :], pred_bin[slc, :, :]
+            
+        img_s = img_s.T
+        gt_s = gt_s.T
+        pred_s = pred_s.T
+        
+        rgb_base = to_rgb_base(img_s)
+        
+        # Panel 0: Image
+        axes[row, 0].imshow(rgb_base, origin="lower")
+        axes[row, 0].set_title(f"{name} Image")
+        axes[row, 0].axis('off')
+        
+        # Panel 1: GT Outline
+        gt_overlay = mark_boundaries(rgb_base, gt_s.astype(int), color=(0, 1, 1), mode='thick')
+        axes[row, 1].imshow(gt_overlay, origin="lower")
+        axes[row, 1].set_title(f"{name} Ground Truth")
+        axes[row, 1].axis('off')
+        
+        # Panel 2: Eval Composite
+        eval_rgb = rgb_base.copy()
+        tp_mask = (pred_s == 1) & (gt_s == 1)
+        fp_mask = (pred_s == 1) & (gt_s == 0)
+        fn_mask = (pred_s == 0) & (gt_s == 1)
+        
+        # Apply colors directly
+        eval_rgb[tp_mask] = eval_rgb[tp_mask] * 0.4 + color_tp * 0.6
+        eval_rgb[fp_mask] = eval_rgb[fp_mask] * 0.4 + color_fp * 0.6
+        eval_rgb[fn_mask] = eval_rgb[fn_mask] * 0.4 + color_fn * 0.6
+        
+        axes[row, 2].imshow(eval_rgb, origin="lower")
+        axes[row, 2].set_title(f"{name} Eval Composite")
+        axes[row, 2].axis('off')
+        
+        # Panel 3: Stats / Legend
+        axes[row, 3].axis('off')
+        if row == 0:
+            axes[row, 3].text(0.1, 0.8, f"Patient: {pid}\nDice: {dice_score:.4f}", fontsize=14, fontweight='bold', transform=axes[row, 3].transAxes)
+            
+            legend_elements = [
+                mpatches.Patch(color=color_tp, label='True Positive (TP)'),
+                mpatches.Patch(color=color_fp, label='False Positive (FP)'),
+                mpatches.Patch(color=color_fn, label='False Negative (FN)'),
+                mpatches.Patch(facecolor='none', edgecolor=(0, 1, 1), linewidth=2, label='Ground Truth')
+            ]
+            axes[row, 3].legend(handles=legend_elements, loc='center', fontsize=12, frameon=False)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+
 
 # Add project root to path so we can import models when running as standalone script
 import sys
@@ -321,53 +409,7 @@ class PostTrainingVisualizer:
                 x_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
                 
                 # Render 2D Montages
-                fig, axes = plt.subplots(3, 4, figsize=(16, 12))
-                
-                slices = [(img_np, z_slice, 2, "Axial"), (img_np, y_slice, 1, "Coronal"), (img_np, x_slice, 0, "Sagittal")]
-                
-                for row, (vol, slc, axis, name) in enumerate(slices):
-                    if axis == 2:
-                        img_s, gt_s, pred_s = img_np[:, :, slc], mask_np[:, :, slc], pred_bin[:, :, slc]
-                    elif axis == 1:
-                        img_s, gt_s, pred_s = img_np[:, slc, :], mask_np[:, slc, :], pred_bin[:, slc, :]
-                    else:
-                        img_s, gt_s, pred_s = img_np[slc, :, :], mask_np[slc, :, :], pred_bin[slc, :, :]
-                        
-                    axes[row, 0].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 0].set_title(f"{name} Image")
-                    axes[row, 0].axis('off')
-                    
-                    axes[row, 1].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 1].imshow(np.ma.masked_where(gt_s.T == 0, gt_s.T), cmap="Greens", alpha=0.5, origin="lower", vmin=0, vmax=1)
-                    axes[row, 1].set_title(f"{name} Ground Truth")
-                    axes[row, 1].axis('off')
-                    
-                    # Calculate TP, FP, FN, TN masks
-                    tp_mask = (pred_s.T == 1) & (gt_s.T == 1)
-                    fp_mask = (pred_s.T == 1) & (gt_s.T == 0)
-                    fn_mask = (pred_s.T == 0) & (gt_s.T == 1)
-                    tn_mask = (pred_s.T == 0) & (gt_s.T == 0)
-
-                    # 3. Prediction Image (Shows what the model predicted, split into TP and FP)
-                    axes[row, 2].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 2].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower", vmin=0, vmax=1)
-                    axes[row, 2].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower", vmin=0, vmax=1)
-                    axes[row, 2].set_title(f"{name} Prediction (TP=B, FP=R)")
-                    axes[row, 2].axis('off')
-                    
-                    # 4. Full Evaluation Difference Map (TP, FP, FN, TN)
-                    axes[row, 3].imshow(img_s.T, cmap="gray", origin="lower")
-                    axes[row, 3].imshow(np.ma.masked_where(~tn_mask, tn_mask), cmap="Purples", alpha=0.2, origin="lower", vmin=0, vmax=1)
-                    axes[row, 3].imshow(np.ma.masked_where(~tp_mask, tp_mask), cmap="Blues", alpha=0.6, origin="lower", vmin=0, vmax=1)
-                    axes[row, 3].imshow(np.ma.masked_where(~fn_mask, fn_mask), cmap="Greens", alpha=0.6, origin="lower", vmin=0, vmax=1)
-                    axes[row, 3].imshow(np.ma.masked_where(~fp_mask, fp_mask), cmap="Reds", alpha=0.6, origin="lower", vmin=0, vmax=1)
-                    axes[row, 3].set_title(f"{name} Eval (TP=B, FP=R, FN=G, TN=P)")
-                    axes[row, 3].axis('off')
-                
-                plt.suptitle(f"{category.capitalize()} Case: {pid} | Dice: {patient_data['Dice']:.4f}")
-                plt.tight_layout()
-                plt.savefig(cat_dir / f"{pid}_montage.png", dpi=150)
-                plt.close(fig)
+                render_case_montage(pid, patient_data["Dice"], img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.png")
                 
                 # 3D Mesh Extraction via Marching Cubes
                 try:
