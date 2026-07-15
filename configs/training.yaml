@@ -2,8 +2,8 @@ experiment_name: "3D_Hemorrhage_HybridSegFormer_UMamba"
 fold: 0
 seed: 42
 deterministic: true
-epochs: 5
-batch_size: 1
+epochs: 100
+batch_size: 2
 num_workers: 4
 patience: 30
 mixed_precision: true
