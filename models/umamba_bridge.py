@@ -7,12 +7,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-try:
-    from mamba_ssm import Mamba
-    HAS_MAMBA = True
-except ImportError:
-    from .mamba_pytorch import Mamba
-    HAS_MAMBA = False
+from .mamba_pytorch import Mamba
 
 from .utils import init_weights_kaiming
 
@@ -35,9 +30,6 @@ class UMambaBridge(nn.Module):
             )
 
         self.apply(init_weights_kaiming)
-
-        if not HAS_MAMBA:
-            logger.warning("mamba_ssm not found! UMambaBridge is using Pure PyTorch Mamba implementation.")
 
     def forward(self, x: Tensor) -> Tensor:
         """

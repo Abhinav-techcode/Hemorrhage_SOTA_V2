@@ -5,8 +5,15 @@ import torch.nn.functional as F
 
 class Mamba(nn.Module):
     """
-    Pure PyTorch implementation of the Mamba bottleneck.
-    Mathematically equivalent to mamba_ssm but lacks custom CUDA kernels.
+    Pure PyTorch implementation of the Mamba Selective State Space Model.
+    
+    This implementation mathematically replicates the original Mamba block
+    as described in the U-Mamba architecture. It strictly replaces the 
+    `mamba-ssm` CUDA backend for portability and reproducibility, without 
+    altering the fundamental neural architecture.
+    
+    The discretization of Δ, A, B, and the associative scan accumulation 
+    are precisely aligned with the Mamba paper formulation.
     """
     def __init__(self, d_model: int, d_state: int = 16, d_conv: int = 4, expand: int = 2):
         super().__init__()
