@@ -137,6 +137,6 @@ class UMambaBot(nn.Module):
             out_ds2 = F.interpolate(out_ds2, size=target_size, mode='trilinear', align_corners=False)
             out_ds3 = F.interpolate(out_ds3, size=target_size, mode='trilinear', align_corners=False)
             
-            return out, out_ds1, out_ds2, out_ds3
+            return out, out_ds1, out_ds2
             
         return out
