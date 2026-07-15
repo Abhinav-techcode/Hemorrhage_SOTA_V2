@@ -57,6 +57,7 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
     import matplotlib.patches as mpatches
     from skimage.segmentation import mark_boundaries
     
+    plt.style.use('dark_background')
     fig, axes = plt.subplots(3, 4, figsize=(16, 12))
     
     # Colors:
@@ -65,10 +66,10 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
     color_fn = np.array([0.95, 0.61, 0.07]) # amber #F39C12
     
     z_slice = np.argmax(mask_np.sum(axis=(0, 1))) if mask_np.sum() > 0 else img_np.shape[2] // 2
-    y_slice = np.argmax(mask_np.sum(axis=(0, 2))) if mask_np.sum() > 0 else img_np.shape[1] // 2
-    x_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
+    z_slice_top = min(z_slice + 3, img_np.shape[2] - 1)
+    z_slice_bottom = max(z_slice - 3, 0)
     
-    slices = [(img_np, z_slice, 2, "Axial"), (img_np, y_slice, 1, "Coronal"), (img_np, x_slice, 0, "Sagittal")]
+    slices = [(img_np, z_slice_top, 2, "Axial (+3)"), (img_np, z_slice, 2, "Axial (Center)"), (img_np, z_slice_bottom, 2, "Axial (-3)")]
     
     for row, (vol, slc, axis, name) in enumerate(slices):
         if axis == 2:
@@ -145,7 +146,8 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
             axes[row, 3].legend(handles=legend_elements, loc='lower left', fontsize=11, frameon=False, bbox_to_anchor=(0.05, 0.05))
 
     plt.tight_layout()
-    plt.savefig(save_path, dpi=200, bbox_inches='tight', facecolor='white')
+    plt.savefig(save_path, dpi=300, bbox_inches='tight', facecolor='#111111')
+    plt.style.use('default') # reset style
     plt.close(fig)
 
 
