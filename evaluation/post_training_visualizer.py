@@ -256,7 +256,7 @@ class PostTrainingVisualizer:
     def _generate_visualizations(self, model, selected_cases: dict):
         """Generate 2D and 3D visual outputs for selected cases."""
         logger.info("Generating 2D multi-plane montages and 3D renders...")
-        from monai.transforms import LoadImaged, ScaleIntensityd, Compose, MapTransform
+        from monai.transforms import LoadImaged, ScaleIntensityd, Compose, MapTransform, Resized, EnsureTyped
         
         class FixShapesVizd(MapTransform):
             def __call__(self, data):
@@ -277,7 +277,10 @@ class PostTrainingVisualizer:
         viz_transforms = Compose([
             LoadImaged(keys=["image", "mask"]),
             FixShapesVizd(keys=["image", "mask"]),
-            ScaleIntensityd(keys=["image"])
+            Resized(keys=["image", "mask"], spatial_size=(256, 256, 64), mode=("trilinear", "nearest")),
+            ScaleIntensityd(keys=["image"]),
+            EnsureTyped(keys=["image"], dtype=torch.float32),
+            EnsureTyped(keys=["mask"], dtype=torch.long)
         ])
         
         for category, patients in selected_cases.items():
