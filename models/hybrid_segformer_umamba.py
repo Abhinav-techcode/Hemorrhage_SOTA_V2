@@ -23,6 +23,11 @@ class BoundaryRefinementHead(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv3d(in_channels // 2, out_channels, kernel_size=1)
         
+        # Focal Loss Prior Initialization
+        prior_prob = 0.01
+        bias_value = -torch.log(torch.tensor((1 - prior_prob) / prior_prob))
+        nn.init.constant_(self.conv2.bias, bias_value)
+        
     def forward(self, x):
         x = self.conv1(x)
         x = self.norm1(x)
@@ -66,6 +71,12 @@ class HybridSegFormerUMamba(nn.Module):
         # Deep Supervision Heads
         self.ds_quarter = nn.Conv3d(decoder_dims[0], num_classes, kernel_size=1)
         self.ds_half = nn.Conv3d(decoder_dims[1], num_classes, kernel_size=1)
+        
+        # Focal Loss Prior Initialization for Deep Supervision
+        prior_prob = 0.01
+        bias_value = -torch.log(torch.tensor((1 - prior_prob) / prior_prob))
+        nn.init.constant_(self.ds_quarter.bias, bias_value)
+        nn.init.constant_(self.ds_half.bias, bias_value)
 
     def forward(self, x):
         # Original size
