@@ -83,7 +83,7 @@ class ResearchFrameworkCallback(TrainerCallback):
         layout["header"].update(Panel(f"[bold cyan]{exp_name} | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
         
         # Hardware
-        mem = torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0
+        mem = torch.cuda.max_memory_allocated() / 1e9 if torch.cuda.is_available() else 0
         hw_table = Table(show_header=False, expand=True, box=None)
         hw_table.add_row("GPU Memory", f"{mem:.1f} GB")
         hw_table.add_row("Samples/sec", f"{self.samples_per_sec:.2f}")

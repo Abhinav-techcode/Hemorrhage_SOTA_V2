@@ -140,12 +140,18 @@ class SegmentationTrainer:
             if (batch_idx + 1) % self.config.grad_accum_steps == 0 or (batch_idx + 1) == len(self.train_loader):
                 if self.scaler:
                     self.scaler.unscale_(self.optimizer)
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
                 else:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                     self.optimizer.step()
+                
+                # Save grad norm to metric manager
+                if isinstance(grad_norm, torch.Tensor):
+                    grad_norm = grad_norm.item()
+                self.metric_manager.train_metrics["grad_norm"] = grad_norm
+                
                 self.optimizer.zero_grad(set_to_none=True)
 
             return loss.item() * self.config.grad_accum_steps
