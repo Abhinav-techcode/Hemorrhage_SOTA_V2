@@ -111,7 +111,7 @@ class DynamicHybridLoss(nn.Module):
         if self.strategy == "uncertainty":
             return sum(0.5 * torch.exp(-self.log_vars[i]) * loss_vals[i] + 0.5 * self.log_vars[i] for i in range(len(self.losses)))
         else:
-            w = torch.softmax(self.weights, dim=0) if self.strategy == "learnable" else (self.weights / self.weights.sum())
+            w = torch.softmax(self.weights, dim=0) if self.strategy == "learnable" else self.weights
             return sum(w[i] * loss_vals[i] for i in range(len(self.losses)))
 
     def forward(self, predictions: Union[torch.Tensor, Tuple[torch.Tensor, ...], List[torch.Tensor]], targets: torch.Tensor) -> Dict[str, torch.Tensor]:
@@ -162,7 +162,7 @@ class DynamicHybridLoss(nn.Module):
                 loss_dict[f"weight_{name}"] = w[i]
                 loss_dict[f"contrib_{name}"] = w[i] * loss_dict[name].detach()
         else:
-            w = (self.weights / self.weights.sum()).detach()
+            w = self.weights.detach()
             for i, name in enumerate(self.names):
                 loss_dict[f"weight_{name}"] = w[i]
                 loss_dict[f"contrib_{name}"] = w[i] * loss_dict[name].detach()
