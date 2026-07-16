@@ -1,0 +1,11 @@
+PatientID,Dice,IoU,FG_Pred_Pct,FG_GT_Pct,Total_Error_Voxels,Image_Path,Mask_Path
+BHSD_0001,0.0,0.0,0.0,0.0005140304565429688,2156.0,processed/images/BHSD_0001.nii.gz,processed/masks/BHSD_0001.nii.gz
+BHSD_0002,0.0,0.0,0.0,0.0017099380493164062,7172.0,processed/images/BHSD_0002.nii.gz,processed/masks/BHSD_0002.nii.gz
+BHSD_0003,0.0,0.0,5.1021575927734375e-05,0.002916574478149414,12447.0,processed/images/BHSD_0003.nii.gz,processed/masks/BHSD_0003.nii.gz
+BHSD_0004,0.0009127210360020399,0.0004565688723232597,9.5367431640625e-07,0.002088785171508789,8757.0,processed/images/BHSD_0004.nii.gz,processed/masks/BHSD_0004.nii.gz
+BHSD_0005,0.0,0.0,2.1457672119140625e-06,0.0004596710205078125,1937.0,processed/images/BHSD_0005.nii.gz,processed/masks/BHSD_0005.nii.gz
+BHSD_0006,0.0,0.0,0.0,0.0006062984466552734,2543.0,processed/images/BHSD_0006.nii.gz,processed/masks/BHSD_0006.nii.gz
+BHSD_0007,0.0,0.0,0.0,0.007554054260253906,31684.0,processed/images/BHSD_0007.nii.gz,processed/masks/BHSD_0007.nii.gz
+BHSD_0008,0.0,0.0,1.4781951904296875e-05,0.0005557537078857422,2393.0,processed/images/BHSD_0008.nii.gz,processed/masks/BHSD_0008.nii.gz
+BHSD_0009,0.0,0.0,0.0,1.049041748046875e-05,44.0,processed/images/BHSD_0009.nii.gz,processed/masks/BHSD_0009.nii.gz
+BHSD_0010,0.0,0.0,1.430511474609375e-06,0.0014946460723876953,6275.0,processed/images/BHSD_0010.nii.gz,processed/masks/BHSD_0010.nii.gz

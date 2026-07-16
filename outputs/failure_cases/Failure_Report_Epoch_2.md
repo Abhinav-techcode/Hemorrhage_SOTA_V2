@@ -1,0 +1,67 @@
+# Scientific Collapse Report - Epoch 2
+
+## Reasons for Collapse
+- Gradient vanishing (norm: 0.0000)
+
+## Metrics at Collapse
+- **epoch**: 2
+- **train_loss**: 0.9133272367017763
+- **val_loss**: 0.8762904424220324
+- **learning_rate**: 0.00029971387562209936
+- **time_sec**: 779.5794959068298
+- **val_loss_total**: 0.8762904424220324
+- **val_loss_dice_ds0**: 0.8926097775499026
+- **val_loss_focal_ds0**: 0.017699921917293675
+- **val_loss_boundary_ds0**: 0.8926097775499026
+- **val_loss_dice_ds1**: 0.8671362971266111
+- **val_loss_focal_ds1**: 0.018610346539655136
+- **val_loss_boundary_ds1**: 0.8671362971266111
+- **val_loss_dice_ds2**: 0.8580766792098681
+- **val_loss_focal_ds2**: 0.02369169865475366
+- **val_loss_boundary_ds2**: 0.8580766792098681
+- **val_dice**: 0.18817535042762756
+- **val_iou**: 0.1285303682088852
+- **val_accuracy**: 0.993751585483551
+- **val_precision**: 0.15632914006710052
+- **val_recall**: 0.34497714042663574
+- **val_specificity**: 0.9953662753105164
+- **val_f1_score**: 0.21515780687332153
+- **val_sensitivity**: 0.34497714042663574
+- **val_case_tp**: 38.0
+- **val_case_fp**: 8.0
+- **val_case_fn**: 2.0
+- **val_case_tn**: 0.0
+- **val_hd95**: 0.0
+- **val_asd**: 0.0
+- **val_mean_confidence**: 0.007167445806165536
+- **val_mean_fg_confidence**: 0.29573197804857043
+- **val_predicted_fg_pct**: 1.407762865225474
+- **val_pred_foreground_ratio**: 0.01407762865225474
+- **val_mean_entropy**: 0.009889771571882497
+- **val_positive_volumes**: 40.0
+- **val_empty_masks**: 8.0
+- **val_mean_lesion_volume**: 12495.9
+- **val_foreground_percentage**: 0.24827122688293457
+- **grad_max**: 0.0
+- **grad_min**: 0.0
+- **grad_mean**: 0.0
+- **grad_norm**: 0.0
+- **weight_mean**: 0.15696112412599358
+- **weight_std**: nan
+- **weight_drift**: 0.19638582567427434
+- **dead_gradients_ratio**: 0.0
+- **activation_mean**: 0.8931783561369755
+- **activation_std**: 6.227621327902772
+- **dead_activations_ratio**: 7.217874281254863e-05
+- **train_loss_total**: 0.9133272367017763
+- **train_loss_dice_ds0**: 0.9249487299102921
+- **train_loss_focal_ds0**: 0.04206181989197506
+- **train_loss_boundary_ds0**: 0.9249487299102921
+- **train_loss_dice_ds1**: 0.8929422511173798
+- **train_loss_focal_ds1**: 0.036230192581870754
+- **train_loss_boundary_ds1**: 0.8929422511173798
+- **train_loss_dice_ds2**: 0.8919599673769496
+- **train_loss_focal_ds2**: 0.02867808286162518
+- **train_loss_boundary_ds2**: 0.8919599673769496
+- **best_epoch**: 2
+- **best_criterion_val**: 0.18817535042762756

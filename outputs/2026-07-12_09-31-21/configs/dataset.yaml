@@ -1,0 +1,26 @@
+# ============================================================
+# Dataset Configuration
+# HybridMedNeXt++
+# ============================================================
+
+processed_images_dir: processed/images
+
+processed_masks_dir: processed/masks
+
+metadata_csv: processed/reports/Processed_Metadata.csv
+
+split_file: processed/splits/dataset_splits.json
+
+kfold_split_file: processed/splits/kfold_splits.json
+
+load_mask: true
+
+cache_size: 0
+
+seed: 42
+
+image_dtype: float32
+
+mask_dtype: uint8
+
+geometry_tolerance: 0.0001

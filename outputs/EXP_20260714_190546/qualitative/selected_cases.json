@@ -1,0 +1,21 @@
+{
+    "best": [
+        "BHSD_0004",
+        "BHSD_0001",
+        "BHSD_0002"
+    ],
+    "worst": [
+        "BHSD_0008",
+        "BHSD_0009",
+        "BHSD_0010"
+    ],
+    "median": [
+        "BHSD_0005",
+        "BHSD_0006"
+    ],
+    "random": [
+        "BHSD_0009",
+        "BHSD_0002",
+        "BHSD_0006"
+    ]
+}

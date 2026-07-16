@@ -1,0 +1,14 @@
+{
+    "framework": "HybridMedNeXt++",
+    "version": "1.0.0",
+    "experiment_name": "experiment",
+    "start_time": "2026-07-12 12:40:43",
+    "hostname": "dgxhnode5",
+    "git_branch": "main",
+    "git_commit": "aaaa6d2bc1663c5f8fafb19b17cc85058b0e68d5",
+    "python": "3.10.12",
+    "torch": "2.6.0+cu124",
+    "cuda": "12.4",
+    "gpu": "NVIDIA H100 80GB HBM3",
+    "seed": 42
+}

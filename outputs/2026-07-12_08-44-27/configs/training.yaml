@@ -1,0 +1,26 @@
+experiment_name: "3D_Hemorrhage_MedNeXt"
+seed: 42
+deterministic: true
+epochs: 250
+patience: 30
+mixed_precision: true
+amp_dtype: "bfloat16"
+compile_model: true
+channels_last: true
+grad_accum_steps: 2
+max_grad_norm: 1.0
+log_freq: 10
+save_dir: "checkpoints/run_01"
+# ===========================================
+# DataLoader
+# ===========================================
+
+batch_size: 1
+
+num_workers: 0
+
+prefetch_factor: 2
+
+pin_memory: false
+
+persistent_workers: false

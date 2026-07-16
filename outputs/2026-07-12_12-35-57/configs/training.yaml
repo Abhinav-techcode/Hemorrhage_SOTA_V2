@@ -1,0 +1,30 @@
+experiment_name: "3D_Hemorrhage_MedNeXt"
+seed: 42
+deterministic: true
+epochs: 250
+patience: 30
+mixed_precision: true
+amp_dtype: "bfloat16"
+compile_model: false
+debug_predictions: true
+debug_interval: 10
+warn_empty_masks: true
+channels_last: true
+grad_accum_steps: 2
+max_grad_norm: 1.0
+log_freq: 10
+save_dir: "checkpoints/run_01"
+wandb:
+  enabled: true
+  project: Hemorrhage_SOTA_V2
+  entity: parveshkhandelwal4618-thapar-university
+  run_name: null
+  tags:
+    - HybridMedNeXt++
+    - 3D
+    - Hemorrhage
+  notes: null
+  log_model: best
+  watch_model: false
+  save_code: true
+  offline: false

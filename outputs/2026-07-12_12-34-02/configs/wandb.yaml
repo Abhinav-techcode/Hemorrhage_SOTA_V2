@@ -1,0 +1,10 @@
+enabled: true
+project: Hemorrhage_SOTA_V2
+entity: parveshkhandelwal4618-thapar-university
+run_name: null
+tags:
+  - HybridMedNeXt++
+  - Hemorrhage
+save_code: true
+log_model: true
+resume: allow

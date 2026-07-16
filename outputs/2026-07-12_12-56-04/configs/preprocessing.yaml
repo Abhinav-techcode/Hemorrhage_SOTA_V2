@@ -1,0 +1,33 @@
+apply_histogram_matching: false
+fill_holes: true
+geometry_atol: 0.0001
+histogram_reference_path: null
+min_component_size: 100
+multi_window: true
+normalization: minmax
+num_workers: 0
+orientation: RAS
+remove_small_components: true
+save_metadata: true
+save_visualization: true
+splits:
+  k_folds: 5
+  test: 0.15
+  train: 0.7
+  val: 0.15
+target_depth: 64
+target_spacing:
+- 0.5
+- 0.5
+- 5.0
+verify_dataset: true
+windows:
+  bone:
+    center: 600
+    width: 2000
+  brain:
+    center: 40
+    width: 80
+  subdural:
+    center: 80
+    width: 200

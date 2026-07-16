@@ -1,0 +1,269 @@
+{
+    "environment": {
+        "python_version": "3.10.12",
+        "pytorch_version": "2.6.0+cu124",
+        "monai_version": "1.6.0",
+        "cuda_available": true,
+        "gpu": {
+            "name": "NVIDIA H100 80GB HBM3 MIG 3g.40gb",
+            "memory_gb": 39.375,
+            "cuda_version": "12.4",
+            "cudnn_version": 90100
+        }
+    },
+    "git": {
+        "commit": "f0addcde38f50a49c0dc95288d376e79b569adac",
+        "branch": "phase2-performance-stabilization"
+    },
+    "configs": {
+        "dataset": {
+            "processed_images_dir": "processed/images",
+            "processed_masks_dir": "processed/masks",
+            "metadata_csv": "processed/reports/Processed_Metadata.csv",
+            "split_file": "processed/splits/dataset_splits.json",
+            "kfold_split_file": "processed/splits/kfold_splits.json",
+            "load_mask": true,
+            "cache_size": 0,
+            "seed": 42,
+            "image_dtype": "float32",
+            "mask_dtype": "uint8",
+            "geometry_tolerance": 0.0001
+        },
+        "model": {
+            "name": "HybridMedNeXt",
+            "params": {
+                "in_channels": 3,
+                "out_channels": 1,
+                "spatial_dims": 3,
+                "deep_supervision": true,
+                "fusion_dim": 96,
+                "bridge_dim": 96
+            }
+        },
+        "training": {
+            "experiment_name": "3D_Hemorrhage_MedNeXt",
+            "seed": 42,
+            "deterministic": true,
+            "epochs": 5,
+            "batch_size": 1,
+            "num_workers": 4,
+            "patience": 30,
+            "mixed_precision": true,
+            "amp_dtype": "bfloat16",
+            "compile_model": false,
+            "channels_last": false,
+            "grad_accum_steps": 8,
+            "max_grad_norm": 1.0,
+            "log_freq": 10,
+            "save_dir": "outputs/EXP_20260713_102426/checkpoints",
+            "health_monitor": {
+                "enabled": false
+            },
+            "exp_dir": "outputs/EXP_20260713_102426"
+        },
+        "optimizer": {
+            "name": "AdamW",
+            "params": {
+                "lr": 0.0003,
+                "weight_decay": 0.01
+            }
+        },
+        "scheduler": {
+            "name": "CosineAnnealingWarmRestarts",
+            "params": {
+                "T_0": 50,
+                "T_mult": 2,
+                "eta_min": 1e-05
+            }
+        },
+        "loss": {
+            "weighting_strategy": "uncertainty",
+            "losses": [
+                {
+                    "name": "dice",
+                    "weight": 1.0,
+                    "params": {
+                        "include_background": false,
+                        "sigmoid": true
+                    }
+                },
+                {
+                    "name": "focal",
+                    "weight": 0.5,
+                    "params": {
+                        "gamma": 2.0
+                    }
+                },
+                {
+                    "name": "boundary",
+                    "weight": 0.2,
+                    "params": {}
+                }
+            ]
+        },
+        "metrics": {
+            "metrics": [
+                {
+                    "name": "dice",
+                    "params": {
+                        "include_background": false,
+                        "reduction": "mean",
+                        "get_not_nans": false
+                    }
+                },
+                {
+                    "name": "hd95",
+                    "params": {
+                        "include_background": false,
+                        "percentile": 95.0,
+                        "reduction": "mean",
+                        "get_not_nans": false
+                    }
+                },
+                {
+                    "name": "confusion",
+                    "params": {
+                        "include_background": false,
+                        "metric_name": [
+                            "precision",
+                            "recall",
+                            "specificity",
+                            "accuracy",
+                            "f1_score"
+                        ]
+                    }
+                }
+            ]
+        },
+        "augmentation": {
+            "version": "2.0.0",
+            "author": "Senior AI Research Engineer",
+            "experiment_name": "BHSD_CQ500_PhysioNet_Baseline",
+            "framework_versions": {
+                "monai": "1.6.0",
+                "pytorch": "2.6.0"
+            },
+            "seed": 42,
+            "deterministic": true,
+            "flip_enabled": true,
+            "flip_prob": 0.5,
+            "flip_spatial_axis": 2,
+            "rotate90_enabled": false,
+            "affine_enabled": true,
+            "affine_prob": 0.2,
+            "affine_rotate_range": [
+                0.0,
+                0.0,
+                0.1745
+            ],
+            "affine_shear_range": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "affine_scale_range": [
+                0.05,
+                0.05,
+                0.05
+            ],
+            "affine_translate_range": [
+                5.0,
+                5.0,
+                5.0
+            ],
+            "zoom_enabled": true,
+            "zoom_prob": 0.15,
+            "zoom_min_zoom": 0.95,
+            "zoom_max_zoom": 1.05,
+            "zoom_mode": "trilinear",
+            "zoom_padding_mode": "constant",
+            "gaussian_noise_enabled": true,
+            "gaussian_noise_prob": 0.15,
+            "gaussian_noise_std": 0.02,
+            "gaussian_smooth_enabled": true,
+            "gaussian_smooth_prob": 0.1,
+            "gaussian_smooth_sigma": [
+                0.5,
+                1.0
+            ],
+            "scale_intensity_enabled": true,
+            "scale_intensity_prob": 0.15,
+            "scale_intensity_factors": 0.05,
+            "shift_intensity_enabled": true,
+            "shift_intensity_prob": 0.15,
+            "shift_intensity_offsets": 0.05,
+            "adjust_contrast_enabled": true,
+            "adjust_contrast_prob": 0.15,
+            "adjust_contrast_gamma": [
+                0.8,
+                1.2
+            ],
+            "spatial_image_mode": "trilinear",
+            "spatial_mask_mode": "nearest",
+            "spatial_padding_mode": "zeros"
+        },
+        "preprocessing": {
+            "apply_histogram_matching": false,
+            "fill_holes": true,
+            "geometry_atol": 0.0001,
+            "histogram_reference_path": null,
+            "min_component_size": 100,
+            "multi_window": true,
+            "normalization": "minmax",
+            "num_workers": 0,
+            "orientation": "RAS",
+            "remove_small_components": true,
+            "save_metadata": true,
+            "save_visualization": true,
+            "splits": {
+                "k_folds": 5,
+                "test": 0.15,
+                "train": 0.7,
+                "val": 0.15
+            },
+            "target_depth": 64,
+            "target_spacing": [
+                0.5,
+                0.5,
+                5.0
+            ],
+            "verify_dataset": true,
+            "windows": {
+                "bone": {
+                    "center": 600,
+                    "width": 2000
+                },
+                "brain": {
+                    "center": 40,
+                    "width": 80
+                },
+                "subdural": {
+                    "center": 80,
+                    "width": 200
+                }
+            }
+        }
+    },
+    "args": {
+        "config_dir": "configs",
+        "resume": null,
+        "seed": 42,
+        "device": "cuda",
+        "experiment": "Hemorrhage_SOTA_Smoke_Test",
+        "debug": false
+    },
+    "versions": {
+        "model": "v1.0",
+        "architecture": "HybridMedNeXt",
+        "dataset": "v1.0",
+        "transform": "v1.0",
+        "loss": "v1.0",
+        "metric": "v1.0"
+    },
+    "fingerprints": {
+        "dataset_config": "3d3a204c2e670e8472ba4338985d209c",
+        "preprocessing_config": "dda649c8ce2f8fc41993fc20112c395e",
+        "augmentation_config": "148f09131e69be66c57eaf74355c6157"
+    },
+    "seed": 42
+}

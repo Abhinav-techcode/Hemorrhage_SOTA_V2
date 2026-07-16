@@ -1,0 +1,11 @@
+weighting_strategy: "uncertainty"  # 'static', 'learnable', 'uncertainty'
+losses:
+  - name: "dice"
+    weight: 1.0
+    params: { include_background: false, sigmoid: true }
+  - name: "focal"
+    weight: 0.5
+    params: { gamma: 2.0 }
+  - name: "boundary"
+    weight: 0.2
+    params: {}

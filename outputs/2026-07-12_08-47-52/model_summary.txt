@@ -1,0 +1,518 @@
+Total Parameters: 75,346,187
+Trainable Parameters: 75,346,187
+
+OptimizedModule(
+  (_orig_mod): HybridMedNeXtPlus(
+    (encoder): Encoder(
+      (stem): Conv3d(3, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+      (stages): ModuleList(
+        (0): ModuleList(
+          (0-1): 2 x MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(24, 24, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=24)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(24, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(96, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (1): DownsampleBlock(
+          (conv): Conv3d(24, 48, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        )
+        (2): ModuleList(
+          (0-1): 2 x MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(48, 48, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=48)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(48, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(192, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (3): DownsampleBlock(
+          (conv): Conv3d(48, 96, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        )
+        (4): ModuleList(
+          (0-3): 4 x MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(96, 96, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=96)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(96, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(384, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (5): DownsampleBlock(
+          (conv): Conv3d(96, 192, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        )
+        (6): ModuleList(
+          (0-1): 2 x MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(192, 192, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=192)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(192, 768, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(768, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (7): DownsampleBlock(
+          (conv): Conv3d(192, 384, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+        )
+        (8): ModuleList(
+          (0-1): 2 x MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(384, 384, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=384)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(384, 1536, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(1536, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+      )
+    )
+    (cross_scale): CrossScaleFusion(
+      (proj_convs): ModuleList(
+        (0): Conv3d(24, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (1): Conv3d(48, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (2): Conv3d(96, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (3): Conv3d(192, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (4): Identity()
+      )
+      (td_fusions): ModuleList(
+        (0-3): 4 x _BiFPNFusion()
+      )
+      (td_convs): ModuleList(
+        (0-3): 4 x Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+      )
+      (bu_fusions): ModuleList(
+        (0-3): 4 x _BiFPNFusion()
+      )
+      (bu_convs): ModuleList(
+        (0-3): 4 x Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+      )
+    )
+    (router): DynamicFeatureRouter(
+      (avg_pool): AdaptiveAvgPool3d(output_size=1)
+      (max_pool): AdaptiveMaxPool3d(output_size=1)
+      (linear1): Linear(in_features=768, out_features=384, bias=True)
+      (act1): GELU(approximate='none')
+      (dropout): Dropout(p=0.1, inplace=False)
+      (linear2): Linear(in_features=384, out_features=384, bias=True)
+      (act2): GELU(approximate='none')
+      (channel_att): Sequential(
+        (0): Linear(in_features=384, out_features=48, bias=True)
+        (1): ReLU(inplace=True)
+        (2): Linear(in_features=48, out_features=384, bias=True)
+        (3): Sigmoid()
+      )
+      (proj): Linear(in_features=384, out_features=3, bias=True)
+      (softmax): Softmax(dim=1)
+    )
+    (transformer_branch): EfficientTransformerBlock3D(
+      (norm1): LayerNorm3d(
+        (norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+      )
+      (attn): EfficientSelfAttention3D(
+        (q_conv): Conv3d(384, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+        (kv_conv): Conv3d(384, 768, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+        (sr): Conv3d(384, 384, kernel_size=(2, 2, 2), stride=(2, 2, 2), bias=False)
+        (norm): LayerNorm3d(
+          (norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+        )
+        (attn_drop): Dropout(p=0.0, inplace=False)
+        (proj): Conv3d(384, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (proj_drop): Dropout(p=0.0, inplace=False)
+      )
+      (norm2): LayerNorm3d(
+        (norm): LayerNorm((384,), eps=1e-06, elementwise_affine=True)
+      )
+      (mlp): Sequential(
+        (0): Conv3d(384, 1536, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (1): GELU(approximate='none')
+        (2): Dropout(p=0.0, inplace=False)
+        (3): Conv3d(1536, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+        (4): Dropout(p=0.0, inplace=False)
+      )
+    )
+    (lka_branch): LKA3D(
+      (dw_conv): Conv3d(384, 384, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(9, 9, 9), dilation=(3, 3, 3), groups=384)
+      (pw_conv1): Conv3d(384, 1536, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      (act): GELU(approximate='none')
+      (pw_conv2): Conv3d(1536, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+    )
+    (local_branch): LocalContextBlock(
+      (conv1): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+      (dwconv): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), groups=384)
+      (se): SEModule3D(
+        (avg_pool): AdaptiveAvgPool3d(output_size=1)
+        (fc): Sequential(
+          (0): Conv3d(384, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+          (1): ReLU(inplace=True)
+          (2): Conv3d(24, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+          (3): Sigmoid()
+        )
+      )
+      (act): ReLU(inplace=True)
+    )
+    (adaptive_fusion): AdaptiveContextFusion(
+      (weight_fusion): Conv3d(1152, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      (ca): ChannelAttention(
+        (avg_pool): AdaptiveAvgPool3d(output_size=1)
+        (fc): Sequential(
+          (0): Conv3d(384, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+          (1): ReLU(inplace=True)
+          (2): Conv3d(48, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+          (3): Sigmoid()
+        )
+      )
+      (sa): SpatialAttention(
+        (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+        (sigmoid): Sigmoid()
+      )
+      (refine): Sequential(
+        (0): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+        (1): BatchNorm3d(384, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): ReLU(inplace=True)
+        (3): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+        (4): BatchNorm3d(384, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      )
+    )
+    (feature_calibration): FeatureCalibration(
+      (conv1): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), bias=False)
+      (norm1): BatchNorm3d(384, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (act1): ReLU(inplace=True)
+      (conv2): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), bias=False)
+      (norm2): BatchNorm3d(384, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (se): Sequential(
+        (0): AdaptiveAvgPool3d(output_size=1)
+        (1): Conv3d(384, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+        (2): ReLU(inplace=True)
+        (3): Conv3d(48, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+        (4): Sigmoid()
+      )
+    )
+    (boundary_enhance): Sequential(
+      (0): BoundaryContextEnhancement(
+        (dwconv): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), groups=384)
+        (spatial_att): Sequential(
+          (0): Conv3d(384, 1, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+          (1): Sigmoid()
+        )
+        (act): GELU(approximate='none')
+      )
+      (1): Conv3d(384, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      (2): BatchNorm3d(384, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (3): ReLU(inplace=True)
+    )
+    (decoder): Decoder(
+      (stages): ModuleList(
+        (0): DecoderStage(
+          (skip_att): DualAttentionSkip(
+            (channel_att): ChannelAttention3D(
+              (avg_pool): AdaptiveAvgPool3d(output_size=1)
+              (max_pool): AdaptiveMaxPool3d(output_size=1)
+              (fc): Sequential(
+                (0): Conv3d(384, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+                (1): ReLU()
+                (2): Conv3d(48, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+              )
+              (sigmoid): Sigmoid()
+            )
+            (spatial_att): SpatialAttention3D(
+              (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+              (sigmoid): Sigmoid()
+            )
+            (res_conv): Conv3d(384, 384, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          )
+          (upsample): ConvTranspose3d(384, 384, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+          (concat_proj): Conv3d(768, 192, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (block1): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(192, 192, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=192)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(192, 768, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(768, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+          (block2): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(192, 192, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=192)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((192,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(192, 768, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(768, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (1): DecoderStage(
+          (skip_att): DualAttentionSkip(
+            (channel_att): ChannelAttention3D(
+              (avg_pool): AdaptiveAvgPool3d(output_size=1)
+              (max_pool): AdaptiveMaxPool3d(output_size=1)
+              (fc): Sequential(
+                (0): Conv3d(192, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+                (1): ReLU()
+                (2): Conv3d(24, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+              )
+              (sigmoid): Sigmoid()
+            )
+            (spatial_att): SpatialAttention3D(
+              (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+              (sigmoid): Sigmoid()
+            )
+            (res_conv): Conv3d(192, 192, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          )
+          (upsample): ConvTranspose3d(192, 192, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+          (concat_proj): Conv3d(384, 96, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (block1): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(96, 96, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=96)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(96, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(384, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+          (block2): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(96, 96, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=96)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((96,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(96, 384, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(384, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (2): DecoderStage(
+          (skip_att): DualAttentionSkip(
+            (channel_att): ChannelAttention3D(
+              (avg_pool): AdaptiveAvgPool3d(output_size=1)
+              (max_pool): AdaptiveMaxPool3d(output_size=1)
+              (fc): Sequential(
+                (0): Conv3d(96, 12, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+                (1): ReLU()
+                (2): Conv3d(12, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+              )
+              (sigmoid): Sigmoid()
+            )
+            (spatial_att): SpatialAttention3D(
+              (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+              (sigmoid): Sigmoid()
+            )
+            (res_conv): Conv3d(96, 96, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          )
+          (upsample): ConvTranspose3d(96, 96, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+          (concat_proj): Conv3d(192, 48, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (block1): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(48, 48, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=48)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(48, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(192, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+          (block2): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(48, 48, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=48)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((48,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(48, 192, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(192, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (3): DecoderStage(
+          (skip_att): DualAttentionSkip(
+            (channel_att): ChannelAttention3D(
+              (avg_pool): AdaptiveAvgPool3d(output_size=1)
+              (max_pool): AdaptiveMaxPool3d(output_size=1)
+              (fc): Sequential(
+                (0): Conv3d(48, 6, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+                (1): ReLU()
+                (2): Conv3d(6, 48, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+              )
+              (sigmoid): Sigmoid()
+            )
+            (spatial_att): SpatialAttention3D(
+              (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+              (sigmoid): Sigmoid()
+            )
+            (res_conv): Conv3d(48, 48, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          )
+          (upsample): ConvTranspose3d(48, 48, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+          (concat_proj): Conv3d(96, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (block1): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(24, 24, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=24)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(24, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(96, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+          (block2): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(24, 24, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=24)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(24, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(96, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+        (4): DecoderStage(
+          (skip_att): DualAttentionSkip(
+            (channel_att): ChannelAttention3D(
+              (avg_pool): AdaptiveAvgPool3d(output_size=1)
+              (max_pool): AdaptiveMaxPool3d(output_size=1)
+              (fc): Sequential(
+                (0): Conv3d(24, 3, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+                (1): ReLU()
+                (2): Conv3d(3, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1), bias=False)
+              )
+              (sigmoid): Sigmoid()
+            )
+            (spatial_att): SpatialAttention3D(
+              (conv): Conv3d(2, 1, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), bias=False)
+              (sigmoid): Sigmoid()
+            )
+            (res_conv): Conv3d(24, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          )
+          (upsample): ConvTranspose3d(24, 24, kernel_size=(2, 2, 2), stride=(2, 2, 2))
+          (concat_proj): Conv3d(48, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+          (block1): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(24, 24, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=24)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(24, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(96, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+          (block2): MedNeXtBlock(
+            (norm1): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (dwconv): Conv3d(24, 24, kernel_size=(7, 7, 7), stride=(1, 1, 1), padding=(3, 3, 3), groups=24)
+            (act): GELU()
+            (norm2): LayerNorm3d(
+              (norm): LayerNorm((24,), eps=1e-06, elementwise_affine=True)
+            )
+            (pwconv1): Conv3d(24, 96, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (act2): GELU()
+            (pwconv2): Conv3d(96, 24, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+            (ls1): LayerScale()
+            (ls2): LayerScale()
+          )
+        )
+      )
+    )
+    (boundary_refine): BoundaryRefinement(
+      (dwconv1): Conv3d(24, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), groups=24)
+      (dwconv2): Conv3d(24, 24, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1), groups=24)
+      (act): GELU(approximate='none')
+    )
+    (deep_supervision): DeepSupervisionHeads(
+      (head_quarter): SegmentationHead(
+        (conv): Conv3d(48, 1, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      )
+      (head_half): SegmentationHead(
+        (conv): Conv3d(24, 1, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      )
+      (head_full): SegmentationHead(
+        (conv): Conv3d(24, 1, kernel_size=(1, 1, 1), stride=(1, 1, 1))
+      )
+    )
+  )
+)

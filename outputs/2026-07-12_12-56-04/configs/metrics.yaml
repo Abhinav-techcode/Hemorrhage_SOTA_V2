@@ -1,0 +1,13 @@
+metrics:
+  - name: "dice"
+    params: { include_background: false, reduction: "mean" }
+  - name: "iou"
+    params: { include_background: false, reduction: "mean" }
+  - name: "hd95"
+    params: { include_background: false, percentile: 95.0, reduction: "mean" }
+  - name: "assd"
+    params: { include_background: false, reduction: "mean" }
+  - name: "surface_dice"
+    params: { include_background: false, class_thresholds: [1.0] }
+  - name: "confusion" # Extracts Precision, Recall, Sensitivity, Specificity, F1, Accuracy
+    params: { include_background: false, metric_name: ["precision", "recall", "specificity", "sensitivity", "accuracy", "f1_score"] }

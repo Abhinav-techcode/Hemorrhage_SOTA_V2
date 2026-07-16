@@ -1,0 +1,67 @@
+# =====================================================================
+# Augmentation Configuration
+# Project: 3D Brain Hemorrhage CT Segmentation
+# =====================================================================
+version: "2.0.0"
+author: "Senior AI Research Engineer"
+experiment_name: "BHSD_CQ500_PhysioNet_Baseline"
+framework_versions:
+  monai: "1.6.0"
+  pytorch: "2.6.0"
+seed: 42
+deterministic: true
+
+# ---------------------------------------------------------------------------
+# Spatial Transforms (Image & Mask)
+# Literature-supported ranges for 3D Adult Brain CTs
+# ---------------------------------------------------------------------------
+flip_enabled: true
+flip_prob: 0.5
+flip_spatial_axis: 2               # Left/Right flip only (anatomically plausible)
+
+rotate90_enabled: false            # Disabled: 90-degree rotations disrupt typical anatomical orientation
+
+affine_enabled: true
+affine_prob: 0.2                   # Reduced from 0.5 (heavy distortion not realistic for CT)
+affine_rotate_range: [0.0, 0.0, 0.1745]  # Z, Y, X max ~10° in-plane (axial)
+affine_shear_range: [0.0, 0.0, 0.0]      # Disabled: shear severely distorts rigid skull anatomy
+affine_scale_range: [0.05, 0.05, 0.05]   # +/- 5% scale (adult brains have low size variance)
+affine_translate_range: [5.0, 5.0, 5.0]  # Max 5 voxel shift
+
+zoom_enabled: true
+zoom_prob: 0.15
+zoom_min_zoom: 0.95
+zoom_max_zoom: 1.05
+zoom_mode: "trilinear"
+zoom_padding_mode: "constant"
+
+# ---------------------------------------------------------------------------
+# Intensity Transforms (Image Only)
+# Simulates CT sensor noise, reconstruction artifacts, and calibration variance
+# ---------------------------------------------------------------------------
+gaussian_noise_enabled: true
+gaussian_noise_prob: 0.15
+gaussian_noise_std: 0.02           # Conservative noise for pre-windowed CTs
+
+gaussian_smooth_enabled: true
+gaussian_smooth_prob: 0.10
+gaussian_smooth_sigma: [0.5, 1.0]
+
+scale_intensity_enabled: true
+scale_intensity_prob: 0.15
+scale_intensity_factors: 0.05      # +/- 5% intensity scaling
+
+shift_intensity_enabled: true
+shift_intensity_prob: 0.15
+shift_intensity_offsets: 0.05      # +/- 5% absolute intensity shift
+
+adjust_contrast_enabled: true
+adjust_contrast_prob: 0.15
+adjust_contrast_gamma: [0.8, 1.2]  # Safe gamma limits for hemorrhage visibility
+
+# ---------------------------------------------------------------------------
+# Global Interpolation / Padding Modes
+# ---------------------------------------------------------------------------
+spatial_image_mode: "trilinear"
+spatial_mask_mode: "nearest"
+spatial_padding_mode: "zeros"

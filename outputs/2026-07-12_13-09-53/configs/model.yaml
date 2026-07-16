@@ -1,0 +1,6 @@
+name: "HybridMedNeXt"
+params:
+  in_channels: 3
+  out_channels: 1
+  spatial_dims: 3
+  deep_supervision: false
