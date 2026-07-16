@@ -8,6 +8,7 @@ from .hybrid_mednext import HybridMedNeXtPlus
 from .hybrid_convnext_umamba import HybridConvNeXtV2_UMamba
 from .hybrid_segformer_umamba import HybridSegFormerUMamba
 from .umamba import UMambaBot
+from .segformer_baseline import SegFormer3DBaseline
 
 __all__ = ["build_model"]
 
@@ -48,6 +49,14 @@ def build_model(config: Dict[str, Any]) -> nn.Module:
             features=params.get('features', [32, 64, 128, 256, 320]),
             d_state=params.get('mamba_d_state', 16),
             deep_supervision=params.get('deep_supervision', True)
+        )
+    elif arch == 'segformer_baseline':
+        return SegFormer3DBaseline(
+            in_channels=params.get('in_channels', 1),
+            num_classes=params.get('out_channels', 1),
+            embed_dims=params.get('embed_dims', [32, 64, 160, 256]),
+            fusion_dim=params.get('fusion_dim', 256),
+            decoder_dims=params.get('decoder_dims', [128, 64, 32])
         )
     else:
         # Default to existing model
