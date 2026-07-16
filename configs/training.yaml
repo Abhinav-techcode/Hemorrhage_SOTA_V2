@@ -3,14 +3,14 @@ fold: 0
 seed: 42
 deterministic: true
 epochs: 10
-batch_size: 32
+batch_size: 16
 num_workers: 0
 patience: 30
 mixed_precision: true
 amp_dtype: "bfloat16"
 compile_model: false
 channels_last: false
-grad_accum_steps: 1
+grad_accum_steps: 2
 max_grad_norm: 1.0
 log_freq: 10
 save_dir: "checkpoints/phase2_smoke_test"
