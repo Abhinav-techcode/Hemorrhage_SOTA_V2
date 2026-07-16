@@ -46,6 +46,7 @@ class ResearchFrameworkCallback(TrainerCallback):
         self.current_train_loss = 0.0
         self.current_lr = 0.0
         self.val_metrics = {}
+        self.train_metrics = {}
         self.epoch_start_time = 0.0
         self.samples_per_sec = 0.0
         self.batch_count = 0
@@ -95,7 +96,15 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_column("Train", style="green")
         metric_table.add_column("Validation", style="magenta")
         
-        metric_table.add_row("Loss", f"{self.current_train_loss:.4f}", f"{self.val_metrics.get('val_loss', 0.0):.4f}")
+        metric_table.add_row("Loss (Total)", f"{self.current_train_loss:.4f}", f"{self.val_metrics.get('val_loss_total', self.val_metrics.get('val_loss', 0.0)):.4f}")
+        metric_table.add_row("  ↳ Dice (unweighted)", f"{self.train_metrics.get('train_loss_dice', 0.0):.4f}", f"{self.val_metrics.get('val_loss_dice', 0.0):.4f}")
+        metric_table.add_row("  ↳ Focal (unweighted)", f"{self.train_metrics.get('train_loss_focal', 0.0):.4f}", f"{self.val_metrics.get('val_loss_focal', 0.0):.4f}")
+        metric_table.add_row("  ↳ Boundary (unweighted)", f"{self.train_metrics.get('train_loss_boundary', 0.0):.4f}", f"{self.val_metrics.get('val_loss_boundary', 0.0):.4f}")
+        
+        metric_table.add_row("Weight: Dice", f"{self.train_metrics.get('train_loss_weight_dice', 0.0):.4f}", "-")
+        metric_table.add_row("Weight: Focal", f"{self.train_metrics.get('train_loss_weight_focal', 0.0):.4f}", "-")
+        metric_table.add_row("Weight: Boundary", f"{self.train_metrics.get('train_loss_weight_boundary', 0.0):.4f}", "-")
+        
         metric_table.add_row("Dice", "-", f"{self.val_metrics.get('val_dice', 0.0):.4f}")
         metric_table.add_row("IoU", "-", f"{self.val_metrics.get('val_iou', 0.0):.4f}")
         metric_table.add_row("Precision", "-", f"{self.val_metrics.get('val_precision', 0.0):.4f}")
@@ -123,7 +132,7 @@ class ResearchFrameworkCallback(TrainerCallback):
         else:
             stats_table.add_row("Improv. Since Best", "-")
             
-        stats_table.add_row("Gradient Norm", f"{self.val_metrics.get('grad_norm', 0.0):.4f}")
+        stats_table.add_row("Gradient Norm", f"{self.train_metrics.get('grad_norm', 0.0):.4f}")
         stats_table.add_row("Checkpoint Status", "Saved" if epochs_since_best == 0 else "Skipped")
             
         layout["stats"].update(Panel(stats_table, title="[blue]Experiment Stats[/blue]"))
@@ -229,6 +238,11 @@ class ResearchFrameworkCallback(TrainerCallback):
             
         try:
             train_metrics = self.metric_engine.compute(mode="train")
+            if hasattr(self, "health_monitor") and self.health_monitor.enabled:
+                # Merge health stats (which includes grad_norm) into train_metrics so dashboard can read them
+                if 'health_stats' in locals():
+                    train_metrics.update(health_stats)
+            self.train_metrics = train_metrics
             log_dict.update(train_metrics)
         except Exception as e:
             logger.error(f"Metric engine train compute failed: {e}", exc_info=True)

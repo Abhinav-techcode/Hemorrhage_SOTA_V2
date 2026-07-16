@@ -147,6 +147,20 @@ class DynamicHybridLoss(nn.Module):
                 loss_dict = {name: val for name, val in zip(self.names, layer_loss_vals)}
 
         loss_dict["total"] = total_loss
+        
+        # Log effective weights
+        if self.strategy == "uncertainty":
+            for i, name in enumerate(self.names):
+                loss_dict[f"weight_{name}"] = 0.5 * torch.exp(-self.log_vars[i]).detach()
+        elif self.strategy == "learnable":
+            w = torch.softmax(self.weights, dim=0).detach()
+            for i, name in enumerate(self.names):
+                loss_dict[f"weight_{name}"] = w[i]
+        else:
+            w = (self.weights / self.weights.sum()).detach()
+            for i, name in enumerate(self.names):
+                loss_dict[f"weight_{name}"] = w[i]
+                
         return loss_dict
 
 class LossFactory:
