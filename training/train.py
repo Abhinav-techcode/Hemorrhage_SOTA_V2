@@ -41,9 +41,6 @@ from typing import Any, Dict
 
 import numpy as np
 import torch
-import torch.multiprocessing
-torch.multiprocessing.set_sharing_strategy('file_system')
-
 import yaml
 
 # ==========================================================
@@ -673,6 +670,8 @@ def main():
         trainer.fit()
         
         # Phase 4.3: Generate Scientific Decision Report
+        reports_dir = Path(trainer_cfg.save_dir) / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
         decision_report = reports_dir / "Scientific_Decision_Report.md"
         with open(decision_report, "w") as f:
             f.write(f"""# Scientific Decision Report
