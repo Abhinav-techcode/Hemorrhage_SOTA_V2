@@ -2,7 +2,7 @@ experiment_name: "SegFormer_Research_Dashboard"
 fold: 0
 seed: 42
 deterministic: true
-epochs: 100
+epochs: 10
 batch_size: 12
 num_workers: 0
 patience: 30

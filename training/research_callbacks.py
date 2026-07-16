@@ -113,6 +113,8 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_row("Specificity", "-", f"{self.val_metrics.get('val_specificity', 0.0):.4f}")
         metric_table.add_row("HD95", "-", f"{self.val_metrics.get('val_hd95', 0.0):.4f}")
         metric_table.add_row("Surface Dice", "-", f"{self.val_metrics.get('val_asd', 0.0):.4f}")
+        metric_table.add_row("Mean Prob", "-", f"{self.val_metrics.get('val_mean_confidence', 0.0):.4f}")
+        metric_table.add_row("Mean FG Prob", "-", f"{self.val_metrics.get('val_mean_fg_confidence', 0.0):.4f}")
         metric_table.add_row("Prediction FG %", "-", f"{self.val_metrics.get('val_pred_foreground_ratio', 0.0) * 100:.4f}%")
         metric_table.add_row("GT FG %", "-", f"{self.val_metrics.get('val_foreground_percentage', 0.0):.4f}%")
         
@@ -318,7 +320,8 @@ class ResearchFrameworkCallback(TrainerCallback):
         pred_csv = metrics_dir / "prediction_metrics.csv"
         pred_keys = [
             "val_pred_foreground_ratio", "val_foreground_percentage",
-            "val_dice", "val_precision", "val_recall"
+            "val_dice", "val_precision", "val_recall",
+            "val_mean_confidence", "val_mean_fg_confidence"
         ]
         
         pred_row = {"epoch": epoch}

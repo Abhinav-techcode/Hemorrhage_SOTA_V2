@@ -51,6 +51,7 @@ class DataLoaderConfig:
     is_distributed: bool = False
     dataset_config: Optional[Any] = None
     fold: Optional[int] = None
+    roi_size: tuple = (64, 160, 160)
 
 
 # ===========================================================================
@@ -128,15 +129,15 @@ class BrainHemorrhageDataModule:
         self.config = config
 
         self.train_transforms = (
-            transform_factory.build_train_pipeline()
+            transform_factory.build_train_pipeline(roi_size=config.roi_size)
         )
 
         self.val_transforms = (
-            transform_factory.build_eval_pipeline()
+            transform_factory.build_eval_pipeline(roi_size=config.roi_size)
         )
 
         self.test_transforms = (
-            transform_factory.build_eval_pipeline()
+            transform_factory.build_eval_pipeline(roi_size=config.roi_size)
         )
 
     # ==========================================================

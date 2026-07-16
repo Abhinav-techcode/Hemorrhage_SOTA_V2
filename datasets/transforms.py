@@ -301,18 +301,18 @@ class TransformFactory:
         import dataclasses
         return dataclasses.asdict(self.config)
 
-    def build_train_pipeline(self) -> Compose:
+    def build_train_pipeline(self, roi_size: tuple = (64, 256, 256)) -> Compose:
         cfg = self.config
         xforms: List[Any] = [
 
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long),
             CropForegroundd(keys=["image", "mask"], source_key="image"),
-            SpatialPadd(keys=["image", "mask"], spatial_size=(64, 256, 256)),
+            SpatialPadd(keys=["image", "mask"], spatial_size=roi_size),
             SinglePosNegCropd(
                 keys=["image", "mask"],
                 label_key="mask",
-                spatial_size=(64, 256, 256),
+                spatial_size=roi_size,
                 pos=1,
                 neg=1,
                 image_key="image",
@@ -383,14 +383,14 @@ class TransformFactory:
         xforms.append(EnsureTyped(keys=["mask"], dtype=torch.long))
         return Compose(xforms)
 
-    def build_eval_pipeline(self) -> Compose:
+    def build_eval_pipeline(self, roi_size: tuple = (64, 256, 256)) -> Compose:
         return Compose([
-        EnsureTyped(keys=["image"], dtype=torch.float32),
-        EnsureTyped(keys=["mask"], dtype=torch.long),
-        CropForegroundd(keys=["image", "mask"], source_key="image"),
-        SpatialPadd(keys=["image", "mask"], spatial_size=(64, 256, 256)),
-        CenterSpatialCropd(keys=["image", "mask"], roi_size=(64, 256, 256)),
-    ])
+            EnsureTyped(keys=["image"], dtype=torch.float32),
+            EnsureTyped(keys=["mask"], dtype=torch.long),
+            CropForegroundd(keys=["image", "mask"], source_key="image"),
+            SpatialPadd(keys=["image", "mask"], spatial_size=roi_size),
+            CenterSpatialCropd(keys=["image", "mask"], roi_size=roi_size),
+        ])
     @staticmethod
     def validate_pipeline(pipeline: Compose, sample_shape: tuple = (64, 256, 256)) -> None:
         """Runs a mock tensor through the pipeline to ensure constraints hold."""
