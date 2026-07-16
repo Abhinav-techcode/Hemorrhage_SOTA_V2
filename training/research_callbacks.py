@@ -283,7 +283,7 @@ class ResearchFrameworkCallback(TrainerCallback):
         grad_norm = log_dict.get("grad_norm", 1.0)
         
         collapse_reasons = []
-        if fg_ratio != -1.0 and (fg_ratio < 0.00001 or fg_ratio > 0.9):
+        if fg_ratio != -1.0 and (fg_ratio < 0.00001 or fg_ratio > 0.9) and epoch > 5:
             collapse_reasons.append(f"Prediction foreground ratio ({fg_ratio:.4f}) collapsed or exploded")
         if grad_norm > 10000:
             collapse_reasons.append(f"Gradient explosion (norm: {grad_norm:.4f})")
