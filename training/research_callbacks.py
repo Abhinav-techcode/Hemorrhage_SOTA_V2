@@ -76,7 +76,10 @@ class ResearchFrameworkCallback(TrainerCallback):
         )
         
         # Header
-        layout["header"].update(Panel(f"[bold cyan]HybridSegFormer-UMamba Research Dashboard | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
+        exp_name = getattr(self.config, "experiment_name", "Research Dashboard")
+        if hasattr(self.config, 'get'):
+            exp_name = self.config.get("experiment_name", exp_name)
+        layout["header"].update(Panel(f"[bold cyan]{exp_name} | Epoch {self.current_epoch}/{self.config.epochs}[/]", style="bold blue"))
         
         # Hardware
         mem = torch.cuda.memory_allocated() / 1e9 if torch.cuda.is_available() else 0
