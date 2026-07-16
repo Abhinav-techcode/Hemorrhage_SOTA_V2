@@ -52,11 +52,13 @@ class MonaiTversky(TverskyLoss): pass
 class SafeBoundaryLoss(nn.Module):
     def __init__(self, **kwargs):
         super().__init__()
+        self.fallback_active = False
         if BoundaryLoss is not None:
             self.loss = BoundaryLoss(**kwargs)
         else:
-            logger.warning("BoundaryLoss missing. Falling back to Surface approximations.")
+            logger.warning("CRITICAL: BoundaryLoss missing from MONAI installation. Falling back to DiceLoss(sigmoid=True) as an approximation.")
             self.loss = DiceLoss(sigmoid=True)
+            self.fallback_active = True
             
     def forward(self, p: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
         return self.loss(p, t)
@@ -148,25 +150,41 @@ class DynamicHybridLoss(nn.Module):
 
         loss_dict["total"] = total_loss
         
-        # Log effective weights
+        # Log effective weights and contributions
         if self.strategy == "uncertainty":
             for i, name in enumerate(self.names):
-                loss_dict[f"weight_{name}"] = 0.5 * torch.exp(-self.log_vars[i]).detach()
+                w = 0.5 * torch.exp(-self.log_vars[i]).detach()
+                loss_dict[f"weight_{name}"] = w
+                loss_dict[f"contrib_{name}"] = w * loss_dict[name].detach()
         elif self.strategy == "learnable":
             w = torch.softmax(self.weights, dim=0).detach()
             for i, name in enumerate(self.names):
                 loss_dict[f"weight_{name}"] = w[i]
+                loss_dict[f"contrib_{name}"] = w[i] * loss_dict[name].detach()
         else:
             w = (self.weights / self.weights.sum()).detach()
             for i, name in enumerate(self.names):
                 loss_dict[f"weight_{name}"] = w[i]
+                loss_dict[f"contrib_{name}"] = w[i] * loss_dict[name].detach()
                 
         return loss_dict
 
 class LossFactory:
     @staticmethod
     def build(config: Dict[str, Any]) -> DynamicHybridLoss:
-        loss_configs = config.get("losses", [])
+        loss_dict = config.get("loss", {})
+        loss_configs = []
+        for name, cfg in loss_dict.items():
+            if cfg.get("enabled", False):
+                weight = cfg.get("weight", 1.0)
+                if weight == "auto":
+                    weight = 1.0
+                loss_configs.append({
+                    "name": name,
+                    "weight": float(weight),
+                    "params": cfg.get("params", {})
+                })
+        
         strategy = config.get("weighting_strategy", "static")
         
         # Extract Deep Supervision Config

@@ -203,6 +203,13 @@ def save_experiment_metadata(configs: Dict[str, Any], args: argparse.Namespace, 
     except Exception:
         metadata["git"]["error"] = "Could not retrieve git info"
         
+    try:
+        from monai.losses import BoundaryLoss
+        metadata["boundary_loss_available"] = True
+    except ImportError:
+        metadata["boundary_loss_available"] = False
+        metadata["boundary_loss_fallback"] = "DiceLoss(sigmoid=True)"
+        
     with open(reports_dir / "Experiment_Metadata.json", "w") as f:
         json.dump(metadata, f, indent=4)
     LOGGER.info(f"Experiment metadata saved to {reports_dir / 'Experiment_Metadata.json'}")
@@ -661,6 +668,37 @@ def main():
     try:
 
         trainer.fit()
+        
+        # Phase 4.3: Generate Scientific Decision Report
+        decision_report = reports_dir / "Scientific_Decision_Report.md"
+        with open(decision_report, "w") as f:
+            f.write(f"""# Scientific Decision Report
+## Experiment: {cfg.get('experiment_name', 'HybridSegFormer-UMamba')}
+
+### 1. Gradient Flow Health
+- [ ] Are gradients non-zero?
+- [ ] Is training loss decreasing steadily?
+
+### 2. Preprocessing & Data Pipeline
+- [ ] Were lesions preserved during cropping?
+- [ ] Is Lesion Occupancy Ratio within acceptable bounds (>= 0.05%)?
+
+### 3. Loss Ablation (Uncertainty Weighting)
+- [ ] Did uncertainty weighting inappropriately suppress the Dice Loss?
+- [ ] Which loss component dominated the optimization?
+
+### 4. Boundary Loss
+- Available: {metadata.get('boundary_loss_available', False)}
+- Fallback Used: {metadata.get('boundary_loss_fallback', 'N/A')}
+
+### 4. Prediction Behavior
+- [ ] Did prediction foreground percentage collapse to ~0%?
+- [ ] Are connected components fragmented or entirely missing?
+
+### Recommendation
+*Based on the answers above, if prediction collapsed AND dice weight vanished continuously, switch `weighting_strategy` to `static`.*
+""")
+        LOGGER.info(f"Scientific Decision Report generated at {decision_report}")
 
     except KeyboardInterrupt:
 

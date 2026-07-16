@@ -113,6 +113,8 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_row("Specificity", "-", f"{self.val_metrics.get('val_specificity', 0.0):.4f}")
         metric_table.add_row("HD95", "-", f"{self.val_metrics.get('val_hd95', 0.0):.4f}")
         metric_table.add_row("Surface Dice", "-", f"{self.val_metrics.get('val_asd', 0.0):.4f}")
+        metric_table.add_row("Prediction FG %", "-", f"{self.val_metrics.get('val_pred_foreground_ratio', 0.0) * 100:.4f}%")
+        metric_table.add_row("GT FG %", "-", f"{self.val_metrics.get('val_foreground_percentage', 0.0):.4f}%")
         
         layout["metrics"].update(Panel(metric_table, title="[magenta]Performance[/magenta]"))
 
@@ -283,6 +285,56 @@ class ResearchFrameworkCallback(TrainerCallback):
             
         log_dict["best_epoch"] = self.best_epoch
         log_dict["best_criterion_val"] = self.best_value
+        
+        # Extract and save metrics to CSV files (Phase 4.3)
+        metrics_dir = self.save_dir / "metrics"
+        metrics_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Loss Components CSV
+        loss_csv = metrics_dir / "loss_components.csv"
+        loss_keys = [
+            "train_loss_total", "train_loss_dice", "train_loss_focal", "train_loss_boundary",
+            "train_loss_weight_dice", "train_loss_weight_focal", "train_loss_weight_boundary",
+            "train_loss_contrib_dice", "train_loss_contrib_focal", "train_loss_contrib_boundary"
+        ]
+        
+        loss_row = {"epoch": epoch}
+        for k in loss_keys:
+            if k in log_dict:
+                loss_row[k] = log_dict[k]
+                
+        write_header = not loss_csv.exists()
+        import csv
+        try:
+            with open(loss_csv, "a", newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=["epoch"] + loss_keys)
+                if write_header:
+                    writer.writeheader()
+                writer.writerow(loss_row)
+        except Exception as e:
+            logger.error(f"Failed to write loss components CSV: {e}")
+            
+        # Prediction Metrics CSV
+        pred_csv = metrics_dir / "prediction_metrics.csv"
+        pred_keys = [
+            "val_pred_foreground_ratio", "val_foreground_percentage",
+            "val_dice", "val_precision", "val_recall"
+        ]
+        
+        pred_row = {"epoch": epoch}
+        for k in pred_keys:
+            if k in log_dict:
+                pred_row[k] = log_dict[k]
+                
+        write_header = not pred_csv.exists()
+        try:
+            with open(pred_csv, "a", newline='') as f:
+                writer = csv.DictWriter(f, fieldnames=["epoch"] + pred_keys)
+                if write_header:
+                    writer.writeheader()
+                writer.writerow(pred_row)
+        except Exception as e:
+            logger.error(f"Failed to write prediction metrics CSV: {e}")
         
         # 4. Statistical Reporting (Phase 8)
         self.history.append(log_dict)

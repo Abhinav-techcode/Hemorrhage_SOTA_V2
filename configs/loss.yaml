@@ -1,13 +1,20 @@
+# Loss Ablation Framework
 weighting_strategy: "uncertainty"  # 'static', 'learnable', 'uncertainty'
-losses:
-  - name: "dice"
-    weight: 1.0
+
+loss:
+  dice:
+    enabled: true
+    weight: auto  # Use 'auto' for uncertainty/learnable, or a float for static
     params: { sigmoid: true }
-  - name: "focal"
-    weight: 0.5
+  
+  focal:
+    enabled: true
+    weight: auto
     params: { gamma: 2.0 }
-  - name: "boundary"
-    weight: 0.2
+    
+  boundary:
+    enabled: true
+    weight: auto
     params: {}
 
 deep_supervision:
