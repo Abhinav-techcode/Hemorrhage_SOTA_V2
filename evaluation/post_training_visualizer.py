@@ -209,7 +209,9 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
             lsens, lprec = metrics.get('Lesion_Sensitivity', float('nan')), metrics.get('Lesion_Precision', float('nan'))
             opt_t, opt_dice = metrics.get('Optimal_Threshold', 0.5), metrics.get('Dice_At_Optimal', dice)
 
+            import textwrap
             diagnosis = generate_diagnosis_text(metrics)
+            diagnosis = textwrap.fill(diagnosis, width=45)
 
             stats_text = (
                 f"Patient: {pid}\n"
@@ -224,7 +226,7 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
                 f"Optimal Thresh: {opt_t:.2f} (Dice {opt_dice:.4f})\n\n"
                 f"Diagnosis:\n{diagnosis}"
             )
-            axes[row, 3].text(0.02, 0.98, stats_text, fontsize=9.5, va='top',
+            axes[row, 3].text(0.02, 0.98, stats_text, fontsize=8, va='top',
                                transform=axes[row, 3].transAxes, wrap=True)
 
             legend_elements = [
@@ -546,6 +548,10 @@ class PostTrainingVisualizer:
                                 f.write(f"v {v[0]} {v[1]} {v[2]}\n")
                             for face in faces:
                                 f.write(f"f {face[0]+1} {face[1]+1} {face[2]+1}\n")
+                        
+                        # Save NIfTI for 3D Slicer
+                        nii_out = nib.Nifti1Image(pred_bin.astype(np.int16), np.eye(4))
+                        nib.save(nii_out, cat_dir / f"{pid}_3D_Pred.nii.gz")
                 except ValueError:
                     logger.warning(f"No surface found for {pid} to extract 3D mesh.")
 

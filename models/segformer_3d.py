@@ -7,6 +7,7 @@ Implements hierarchical feature extraction with Overlapping Patch Merging,
 import torch
 import torch.nn as nn
 from typing import Tuple, List
+from monai.networks.layers.drop_path import DropPath
 
 class MixFFN3D(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
@@ -84,7 +85,7 @@ class EfficientSelfAttention3D(nn.Module):
         return x
 
 class Block3D(nn.Module):
-    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0., sr_ratio=1):
+    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0., drop_path=0., sr_ratio=1):
         super().__init__()
         self.norm1 = nn.LayerNorm(dim)
         self.attn = EfficientSelfAttention3D(
@@ -94,10 +95,11 @@ class Block3D(nn.Module):
         self.norm2 = nn.LayerNorm(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = MixFFN3D(in_features=dim, hidden_features=mlp_hidden_dim, drop=drop)
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
     def forward(self, x, shape):
-        x = x + self.attn(self.norm1(x), shape)
-        x = x + self.mlp(self.norm2(x), shape)
+        x = x + self.drop_path(self.attn(self.norm1(x), shape))
+        x = x + self.drop_path(self.mlp(self.norm2(x), shape))
         return x
 
 class OverlapPatchEmbed3D(nn.Module):
@@ -124,7 +126,8 @@ class SegFormer3DEncoder(nn.Module):
                  depths=[2, 2, 2, 2],
                  sr_ratios=[8, 4, 2, 1],
                  drop_rate=0.,
-                 attn_drop_rate=0.):
+                 attn_drop_rate=0.,
+                 drop_path_rate=0.1):
         super().__init__()
         
         self.depths = depths
@@ -135,25 +138,32 @@ class SegFormer3DEncoder(nn.Module):
         self.patch_embed3 = OverlapPatchEmbed3D(patch_size=3, stride=2, padding=1, in_chans=embed_dims[1], embed_dim=embed_dims[2])
         self.patch_embed4 = OverlapPatchEmbed3D(patch_size=3, stride=2, padding=1, in_chans=embed_dims[2], embed_dim=embed_dims[3])
         
+        # Stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]
+        
         # Transformer Blocks
         self.block1 = nn.ModuleList([Block3D(
             dim=embed_dims[0], num_heads=num_heads[0], mlp_ratio=mlp_ratios[0], qkv_bias=qkv_bias, 
-            drop=drop_rate, attn_drop=attn_drop_rate, sr_ratio=sr_ratios[0]) for _ in range(depths[0])])
+            drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], sr_ratio=sr_ratios[0]) 
+            for i in range(depths[0])])
         self.norm1 = nn.LayerNorm(embed_dims[0])
         
         self.block2 = nn.ModuleList([Block3D(
             dim=embed_dims[1], num_heads=num_heads[1], mlp_ratio=mlp_ratios[1], qkv_bias=qkv_bias, 
-            drop=drop_rate, attn_drop=attn_drop_rate, sr_ratio=sr_ratios[1]) for _ in range(depths[1])])
+            drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[depths[0] + i], sr_ratio=sr_ratios[1]) 
+            for i in range(depths[1])])
         self.norm2 = nn.LayerNorm(embed_dims[1])
         
         self.block3 = nn.ModuleList([Block3D(
             dim=embed_dims[2], num_heads=num_heads[2], mlp_ratio=mlp_ratios[2], qkv_bias=qkv_bias, 
-            drop=drop_rate, attn_drop=attn_drop_rate, sr_ratio=sr_ratios[2]) for _ in range(depths[2])])
+            drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[depths[0] + depths[1] + i], sr_ratio=sr_ratios[2]) 
+            for i in range(depths[2])])
         self.norm3 = nn.LayerNorm(embed_dims[2])
         
         self.block4 = nn.ModuleList([Block3D(
             dim=embed_dims[3], num_heads=num_heads[3], mlp_ratio=mlp_ratios[3], qkv_bias=qkv_bias, 
-            drop=drop_rate, attn_drop=attn_drop_rate, sr_ratio=sr_ratios[3]) for _ in range(depths[3])])
+            drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[depths[0] + depths[1] + depths[2] + i], sr_ratio=sr_ratios[3]) 
+            for i in range(depths[3])])
         self.norm4 = nn.LayerNorm(embed_dims[3])
 
     def forward_features(self, x):
