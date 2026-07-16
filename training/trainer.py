@@ -147,10 +147,10 @@ class SegmentationTrainer:
                     grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                     self.optimizer.step()
                 
-                # Save grad norm to metric manager
+                # Save grad norm to trainer directly
                 if isinstance(grad_norm, torch.Tensor):
                     grad_norm = grad_norm.item()
-                self.metric_manager.train_metrics["grad_norm"] = grad_norm
+                self.current_grad_norm = grad_norm
                 
                 self.optimizer.zero_grad(set_to_none=True)
 

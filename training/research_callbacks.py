@@ -204,6 +204,9 @@ class ResearchFrameworkCallback(TrainerCallback):
         self.current_lr = trainer.optimizer.param_groups[0]['lr']
         self.batch_count += 1
         
+        if hasattr(trainer, "current_grad_norm"):
+            self.train_metrics["grad_norm"] = trainer.current_grad_norm
+        
         now = time.time()
         elapsed = now - self.last_batch_time
         # Batch size defaults to 1 if not explicitly found
