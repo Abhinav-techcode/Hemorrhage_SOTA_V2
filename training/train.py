@@ -672,50 +672,7 @@ def main():
     LOGGER.info("=" * 80)
 
     try:
-        from rich.console import Console
-        from rich.table import Table
-        
-        console = Console()
-        
-        # Architecture Table
-        arch_table = Table(title="🧠 Model Architecture: HybridConvNeXtV2-UMamba", show_header=True, header_style="bold magenta")
-        arch_table.add_column("Module", style="cyan")
-        arch_table.add_column("Technology", style="green")
-        arch_table.add_column("Details", style="yellow")
-        
-        arch_table.add_row("Encoder", "3D ConvNeXt V2", "Depths: [2, 2, 4, 2, 2], Dims: [24, 48, 96, 192, 384]")
-        arch_table.add_row("Fusion", "Cross-Scale Pyramid", "Projects all layers to 384-dim, fuses Top-Down & Bottom-Up")
-        arch_table.add_row("Bottleneck", "UMamba State-Space", "Flattens 3D -> 1D. 2 Mamba Blocks (d_state=16, expand=2)")
-        arch_table.add_row("Decoder", "Boundary-Aware", "Upsamples back to 3D with massive 384-dim skip connections")
-        arch_table.add_row("Output", "Deep Supervision", "Resolutions: Quarter (0.25), Half (0.50), Full (1.00)")
-        
-        # Config Table
-        cfg_table = Table(title="⚙️ Training Configuration", show_header=True, header_style="bold blue")
-        cfg_table.add_column("Parameter", style="cyan")
-        cfg_table.add_column("Value", style="bold green")
-        
-        cfg_table.add_row("Batch Size", str(trainer_cfg.batch_size))
-        cfg_table.add_row("Grad Accumulation", str(trainer_cfg.grad_accum_steps))
-        cfg_table.add_row("Effective Batch", str(trainer_cfg.batch_size * trainer_cfg.grad_accum_steps))
-        cfg_table.add_row("Epochs", str(trainer_cfg.epochs))
-        cfg_table.add_row("Precision", "bfloat16 (Mixed)" if trainer_cfg.mixed_precision else "float32")
-        
-        opt_cfg = configs["optimizer"]
-        cfg_table.add_row("Optimizer", opt_cfg.get("name", "AdamW"))
-        cfg_table.add_row("Learning Rate", str(opt_cfg.get("params", {}).get("lr", "5e-5")))
-        
-        loss_cfg = configs["loss"]["loss"]
-        loss_str = []
-        if loss_cfg.get("dice", {}).get("enabled"): loss_str.append(f"Dice (w={loss_cfg['dice']['weight']})")
-        if loss_cfg.get("focal", {}).get("enabled"): loss_str.append(f"Focal (w={loss_cfg['focal']['weight']})")
-        cfg_table.add_row("Loss Function", " + ".join(loss_str))
-        
-        console.print("\n")
-        console.print(arch_table)
-        console.print("\n")
-        console.print(cfg_table)
-        console.print("\n")
-        
+
         trainer.fit()
         
         # Phase 4.3: Generate Scientific Decision Report
