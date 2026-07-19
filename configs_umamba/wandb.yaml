@@ -1,7 +1,7 @@
 enabled: true
 project: Hemorrhage_SOTA_V2
 entity: parveshkhandelwal4618-thapar-university
-run_name: null
+run_name: "ConvNeXtV2_UMamba"
 tags:
   - HybridMedNeXt++
   - Hemorrhage
