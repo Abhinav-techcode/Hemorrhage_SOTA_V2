@@ -79,7 +79,7 @@ class SegmentationTrainer:
 
         self.amp_dtype = torch.bfloat16 if (getattr(config, "amp_dtype", "bfloat16") == "bfloat16" and torch.cuda.is_bf16_supported()) else torch.float16
         self.device_type = "cuda" if "cuda" in self.device else "cpu"
-        self.scaler = torch.amp.GradScaler(self.device_type) if (getattr(config, "mixed_precision", False) and self.amp_dtype == torch.float16) else None
+        self.scaler = torch.cuda.amp.GradScaler() if (getattr(config, "mixed_precision", False) and self.amp_dtype == torch.float16) else None
         
         if "cuda" in self.device:
             torch.backends.cuda.matmul.allow_tf32 = True
