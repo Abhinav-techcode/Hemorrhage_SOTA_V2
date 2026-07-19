@@ -7,7 +7,7 @@ batch_size: 1
 num_workers: 0
 patience: 30
 mixed_precision: true
-amp_dtype: "bfloat16"
+amp_dtype: "float16"
 compile_model: false
 channels_last: false
 grad_accum_steps: 8
