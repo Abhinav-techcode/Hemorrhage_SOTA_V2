@@ -277,6 +277,7 @@ class SegmentationTrainer:
         if self.scaler:
             self.scaler.scale(loss).backward()
             self.scaler.unscale_(self.optimizer)
+            self.scaler.update()
         else:
             loss.backward()
             
