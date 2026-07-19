@@ -3,7 +3,7 @@ fold: 0
 seed: 42
 deterministic: true
 epochs: 50
-batch_size: 16
+batch_size: 4
 num_workers: 0
 patience: 30
 mixed_precision: true
