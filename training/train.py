@@ -604,8 +604,14 @@ def main():
         configs["training"]["epochs"] = 1  # Debug mode is only for 1 epoch
 
     import datetime
-    exp_id = f"EXP_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    exp_dir = Path("outputs") / exp_id
+    model_name = configs["training"].get("experiment_name", "Model")
+    exp_id = f"{model_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Respect the user's configured save_dir instead of hardcoding 'outputs'
+    base_save_dir = Path(configs["training"].get("save_dir", "outputs"))
+    
+    # If the configured save_dir is already an absolute path (like Google Drive), this will use it directly.
+    exp_dir = base_save_dir / exp_id
     
     for sub in ["checkpoints", "logs", "reports", "curves", "qualitative", "metrics", "failure_cases"]:
         (exp_dir / sub).mkdir(parents=True, exist_ok=True)
@@ -675,7 +681,7 @@ def main():
         decision_report = reports_dir / "Scientific_Decision_Report.md"
         with open(decision_report, "w") as f:
             f.write(f"""# Scientific Decision Report
-## Experiment: {cfg.get('experiment_name', 'HybridSegFormer-UMamba')}
+## Experiment: {configs.get('experiment_name', 'HybridSegFormer-UMamba')}
 
 ### 1. Gradient Flow Health
 - [ ] Are gradients non-zero?
@@ -690,8 +696,8 @@ def main():
 - [ ] Which loss component dominated the optimization?
 
 ### 4. Boundary Loss
-- Available: {metadata.get('boundary_loss_available', False)}
-- Fallback Used: {metadata.get('boundary_loss_fallback', 'N/A')}
+- Available: {configs.get('loss', {}).get('boundary_loss_available', False)}
+- Fallback Used: {configs.get('loss', {}).get('boundary_loss_fallback', 'N/A')}
 
 ### 4. Prediction Behavior
 - [ ] Did prediction foreground percentage collapse to ~0%?
@@ -701,7 +707,6 @@ def main():
 *Based on the answers above, if prediction collapsed AND dice weight vanished continuously, switch `weighting_strategy` to `static`.*
 """)
         LOGGER.info(f"Scientific Decision Report generated at {decision_report}")
-
     except KeyboardInterrupt:
 
         LOGGER.warning(
@@ -732,12 +737,12 @@ def main():
     try:
         from evaluation.post_training_visualizer import trigger_visualization_pipeline
         try:
+            exp_dir = trainer_cfg.save_dir
             trigger_visualization_pipeline(exp_dir, configs)
         except Exception as e:
             LOGGER.exception(f"Post-training visualization failed: {e}")
     except ImportError:
         LOGGER.warning("evaluation.post_training_visualizer not found. Skipping Milestone D.")
-
 # ==========================================================
 # Entry Point
 # ==========================================================

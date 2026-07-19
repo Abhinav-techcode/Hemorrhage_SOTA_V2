@@ -1,0 +1,24 @@
+# Loss Ablation Framework
+weighting_strategy: "static"  # 'static', 'learnable', 'uncertainty'
+
+loss:
+  dice:
+    enabled: true
+    weight: 50.0
+    params: { sigmoid: true }
+  
+  focal:
+    enabled: true
+    weight: 20.0
+    params: { gamma: 2.0 }
+    
+  boundary:
+    enabled: false
+    weight: 1.0
+    params: {}
+
+deep_supervision:
+  weights:
+    full: 1.00
+    half: 0.50
+    quarter: 0.25

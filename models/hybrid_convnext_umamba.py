@@ -213,7 +213,7 @@ class HybridConvNeXtV2_UMamba(nn.Module):
         
         # Deep supervision
         return {
-            'quarter': self.head_quarter(decoder_outs[1]),
+            'full': self.head_full(decoder_outs[3]),
             'half': self.head_half(decoder_outs[2]),
-            'full': self.head_full(decoder_outs[3])
+            'quarter': self.head_quarter(decoder_outs[1])
         }

@@ -58,7 +58,7 @@ class DeepSupervisionHeads(nn.Module):
             resolutions (1/4, 1/2, full).
         """
         return {
-            'quarter': self.head_quarter(decoder_outputs[self.idx_quarter]),
+            'full': self.head_full(decoder_outputs[self.idx_full]),
             'half': self.head_half(decoder_outputs[self.idx_half]),
-            'full': self.head_full(decoder_outputs[self.idx_full])
+            'quarter': self.head_quarter(decoder_outputs[self.idx_quarter])
         }

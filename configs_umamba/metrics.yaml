@@ -1,0 +1,7 @@
+metrics:
+  - name: "dice"
+    params: { reduction: "mean", get_not_nans: false }
+  - name: "hd95"
+    params: { percentile: 95.0, reduction: "mean", get_not_nans: false }
+  - name: "conf_matrix"
+    params: { metric_name: ["precision", "recall", "specificity", "accuracy", "f1_score"] }
