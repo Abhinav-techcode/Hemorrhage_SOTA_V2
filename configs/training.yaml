@@ -1,8 +1,8 @@
-experiment_name: "SegFormer_Research_Dashboard"
+experiment_name: "HybridSegFormer_50Epochs"
 fold: 0
 seed: 42
 deterministic: true
-epochs: 100
+epochs: 50
 batch_size: 16
 num_workers: 0
 patience: 30

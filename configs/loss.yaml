@@ -4,12 +4,12 @@ weighting_strategy: "static"  # 'static', 'learnable', 'uncertainty'
 loss:
   dice:
     enabled: true
-    weight: 1.0
+    weight: 50.0
     params: { sigmoid: true }
   
   focal:
     enabled: true
-    weight: 100.0
+    weight: 20.0
     params: { gamma: 2.0 }
     
   boundary:

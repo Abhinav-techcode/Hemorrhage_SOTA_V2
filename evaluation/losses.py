@@ -114,8 +114,10 @@ class DynamicHybridLoss(nn.Module):
             w = torch.softmax(self.weights, dim=0) if self.strategy == "learnable" else self.weights
             return sum(w[i] * loss_vals[i] for i in range(len(self.losses)))
 
-    def forward(self, predictions: Union[torch.Tensor, Tuple[torch.Tensor, ...], List[torch.Tensor]], targets: torch.Tensor) -> Dict[str, torch.Tensor]:
-        if isinstance(predictions, torch.Tensor):
+    def forward(self, predictions: Union[torch.Tensor, Tuple[torch.Tensor, ...], List[torch.Tensor], dict], targets: torch.Tensor) -> Dict[str, torch.Tensor]:
+        if isinstance(predictions, dict):
+            predictions = list(predictions.values())
+        elif isinstance(predictions, torch.Tensor):
             predictions = [predictions]
             
         if len(predictions) > 1:
