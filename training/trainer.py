@@ -241,7 +241,7 @@ class SegmentationTrainer:
         if "cuda" in self.device_type:
             torch.cuda.reset_peak_memory_stats(self.device)
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
-        with amp_ctx, torch.no_grad():
+        with amp_ctx:
             outputs = self.model(images)
             
             # Deep Supervision
