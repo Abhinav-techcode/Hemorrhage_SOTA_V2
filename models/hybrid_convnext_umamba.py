@@ -186,6 +186,13 @@ class HybridConvNeXtV2_UMamba(nn.Module):
 
         self.apply(init_weights_kaiming)
 
+        # Focal Loss Prior Initialization
+        prior_prob = 0.01
+        bias_value = -torch.log(torch.tensor((1 - prior_prob) / prior_prob)).item()
+        nn.init.constant_(self.head_quarter.bias, bias_value)
+        nn.init.constant_(self.head_half.bias, bias_value)
+        nn.init.constant_(self.head_full.bias, bias_value)
+
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
         """
         Forward pass.
