@@ -676,7 +676,7 @@ def main():
         trainer.fit()
         
         # Phase 4.3: Generate Scientific Decision Report
-        reports_dir = Path(trainer_cfg.save_dir) / "reports"
+        reports_dir = exp_dir / "reports"
         reports_dir.mkdir(parents=True, exist_ok=True)
         decision_report = reports_dir / "Scientific_Decision_Report.md"
         with open(decision_report, "w") as f:
@@ -737,7 +737,6 @@ def main():
     try:
         from evaluation.post_training_visualizer import trigger_visualization_pipeline
         try:
-            exp_dir = trainer_cfg.save_dir
             trigger_visualization_pipeline(exp_dir, configs)
         except Exception as e:
             LOGGER.exception(f"Post-training visualization failed: {e}")

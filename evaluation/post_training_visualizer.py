@@ -385,11 +385,12 @@ class PostTrainingVisualizer:
             for i, batch in enumerate(tqdm(loader, desc="Inference")):
                 val_inputs, val_labels = batch["image"].to(self.device), batch["mask"].to(self.device)
 
-                val_logits = model(val_inputs)
-                if isinstance(val_logits, dict):
-                    val_logits = val_logits.get("full", list(val_logits.values())[-1])
-                elif isinstance(val_logits, (list, tuple)):
-                    val_logits = val_logits[0]
+                with torch.autocast(device_type="cuda", dtype=torch.float16):
+                    val_logits = model(val_inputs)
+                    if isinstance(val_logits, dict):
+                        val_logits = val_logits.get("full", list(val_logits.values())[-1])
+                    elif isinstance(val_logits, (list, tuple)):
+                        val_logits = val_logits[0]
 
                 val_probs = torch.sigmoid(val_logits)
                 val_bin = (val_probs > 0.5).float()
@@ -525,11 +526,12 @@ class PostTrainingVisualizer:
                 mask_tensor = data["mask"].unsqueeze(0).to(self.device)
 
                 with torch.no_grad():
-                    pred_logits = model(img_tensor)
-                    if isinstance(pred_logits, dict):
-                        pred_logits = pred_logits.get("full", list(pred_logits.values())[-1])
-                    elif isinstance(pred_logits, (list, tuple)):
-                        pred_logits = pred_logits[0]
+                    with torch.autocast(device_type="cuda", dtype=torch.float16):
+                        pred_logits = model(img_tensor)
+                        if isinstance(pred_logits, dict):
+                            pred_logits = pred_logits.get("full", list(pred_logits.values())[-1])
+                        elif isinstance(pred_logits, (list, tuple)):
+                            pred_logits = pred_logits[0]
                     pred_prob = torch.sigmoid(pred_logits)[0, 0].cpu().numpy()
                     pred_bin = (pred_prob > 0.5).astype(np.float32)
 
