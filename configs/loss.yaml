@@ -10,7 +10,7 @@ loss:
   focal:
     enabled: true
     weight: 1.0
-    params: { gamma: 2.0 }
+    params: { gamma: 2.0, alpha: 0.75 }
     
   tversky:
     enabled: false
