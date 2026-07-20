@@ -40,7 +40,8 @@ class GRN(nn.Module):
         # L2 norm across spatial dimensions, using fused vector_norm to prevent OOM
         # Force float32 to prevent overflow in float16/bfloat16 mixed precision
         x_f32 = x.to(torch.float32)
-        Gx = torch.linalg.vector_norm(x_f32, ord=2, dim=(2, 3, 4), keepdim=True)
+        # Use safe norm computation to prevent NaN gradients when x is 0
+        Gx = torch.sqrt(torch.sum(x_f32.pow(2), dim=(2, 3, 4), keepdim=True) + 1e-6)
         Nx = Gx / (Gx.mean(dim=1, keepdim=True) + 1e-6)
         out = self.gamma.float() * (x_f32 * Nx) + self.beta.float() + x_f32
         return out.to(x.dtype)

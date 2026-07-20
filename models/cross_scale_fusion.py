@@ -20,9 +20,9 @@ class _BiFPNFusion(nn.Module):
         self.eps = 1e-4
 
     def forward(self, x1: Tensor, x2: Tensor) -> Tensor:
-        w1 = torch.relu(self.w1).view(1, 1, 1, 1, 1)
-        w2 = torch.relu(self.w2).view(1, 1, 1, 1, 1)
-        return (w1 * x1 + w2 * x2) / (w1 + w2 + self.eps)
+        # Use softmax to guarantee w1+w2=1 without eps, preventing gradient explosion when w1,w2 approach 0
+        w = torch.softmax(torch.cat([self.w1, self.w2]), dim=0).view(2, 1, 1, 1, 1)
+        return w[0] * x1 + w[1] * x2
 
 
 class CrossScaleFusion(nn.Module):

@@ -23,11 +23,13 @@ class UMambaBridge(nn.Module):
         super().__init__()
         self.dim = dim
         self.blocks = nn.ModuleList()
+        self.norms = nn.ModuleList()
         
         for _ in range(num_blocks):
             self.blocks.append(
                 Mamba(d_model=dim, d_state=d_state, d_conv=d_conv, expand=expand)
             )
+            self.norms.append(nn.LayerNorm(dim))
 
         self.apply(init_weights_kaiming)
 
@@ -44,9 +46,12 @@ class UMambaBridge(nn.Module):
         # Transpose for sequence modeling: (B, L, C)
         x_seq = x_flat.transpose(1, 2)
         
-        for block in self.blocks:
-            # Both Mamba and MambaFallback take (B, L, C)
+        for block, norm in zip(self.blocks, self.norms):
+            # Pre-norm formulation with residual connection
+            residual = x_seq
+            x_seq = norm(x_seq)
             x_seq = block(x_seq)
+            x_seq = residual + x_seq
             
         # Transpose back: (B, C, L)
         x_flat = x_seq.transpose(1, 2)
