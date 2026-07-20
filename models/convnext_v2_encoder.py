@@ -20,11 +20,13 @@ class LayerNorm(nn.Module):
         self.normalized_shape = (normalized_shape,)
     
     def forward(self, x: Tensor) -> Tensor:
-        u = x.mean(1, keepdim=True)
-        s = (x - u).pow(2).mean(1, keepdim=True)
-        x = (x - u) / torch.sqrt(s + self.eps)
-        x = self.weight[:, None, None, None] * x + self.bias[:, None, None, None]
-        return x
+        # Cast to float32 to prevent overflow in mixed precision variance calculation
+        x_f32 = x.to(torch.float32)
+        u = x_f32.mean(1, keepdim=True)
+        s = (x_f32 - u).pow(2).mean(1, keepdim=True)
+        x_norm = (x_f32 - u) / torch.sqrt(s + self.eps)
+        x = self.weight[:, None, None, None].float() * x_norm + self.bias[:, None, None, None].float()
+        return x.to(x.dtype)
 
 
 class GRN(nn.Module):
@@ -37,9 +39,11 @@ class GRN(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         # L2 norm across spatial dimensions, using fused vector_norm to prevent OOM
         # Force float32 to prevent overflow in float16/bfloat16 mixed precision
-        Gx = torch.linalg.vector_norm(x.to(torch.float32), ord=2, dim=(2, 3, 4), keepdim=True).to(x.dtype)
+        x_f32 = x.to(torch.float32)
+        Gx = torch.linalg.vector_norm(x_f32, ord=2, dim=(2, 3, 4), keepdim=True)
         Nx = Gx / (Gx.mean(dim=1, keepdim=True) + 1e-6)
-        return self.gamma * (x * Nx) + self.beta + x
+        out = self.gamma.float() * (x_f32 * Nx) + self.beta.float() + x_f32
+        return out.to(x.dtype)
 
 
 class DropPath(nn.Module):
