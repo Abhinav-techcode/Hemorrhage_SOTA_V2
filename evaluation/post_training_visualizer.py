@@ -263,10 +263,13 @@ class PostTrainingVisualizer:
         self.random_cases_dir = self.qual_dir / "random_cases"
         self.all_cases_dir = self.qual_dir / "all_cases"
         self.summary_dir = self.qual_dir / "summary"
+        
+        self.pdfs_dir = self.exp_dir / "predictions" / "pdfs"
+        self.nifti_dir = self.exp_dir / "predictions" / "nifti"
 
         for d in [self.best_cases_dir, self.worst_cases_dir, self.median_cases_dir,
                   self.random_cases_dir, self.all_cases_dir, self.summary_dir,
-                  self.plots_dir, self.metrics_dir]:
+                  self.plots_dir, self.metrics_dir, self.pdfs_dir, self.nifti_dir]:
             d.mkdir(parents=True, exist_ok=True)
 
         if torch.cuda.is_available():
@@ -381,6 +384,23 @@ class PostTrainingVisualizer:
         dice_metric = DiceMetric(include_background=False, reduction="none")
         iou_metric = MeanIoU(include_background=False, reduction="none")
 
+        from monai.inferers import SlidingWindowInferer
+        
+        class ModelWrapper(torch.nn.Module):
+            def __init__(self, model):
+                super().__init__()
+                self.model = model
+            def forward(self, x):
+                out = self.model(x)
+                if isinstance(out, dict):
+                    return out.get("full", list(out.values())[-1])
+                if isinstance(out, (list, tuple)):
+                    return out[0]
+                return out
+                
+        wrapped_model = ModelWrapper(model)
+        inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
+        
         results = []
         with torch.no_grad():
             for i, batch in enumerate(tqdm(loader, desc="Inference")):
@@ -392,11 +412,8 @@ class PostTrainingVisualizer:
                 val_labels = val_labels.to(self.device)
 
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
-                    val_logits = model(val_inputs)
-                    if isinstance(val_logits, dict):
-                        val_logits = val_logits.get("full", list(val_logits.values())[-1])
-                    elif isinstance(val_logits, (list, tuple)):
-                        val_logits = val_logits[0]
+                    # Ensure spatial dims match roi_size order if they are different (DHW vs HWD)
+                    val_logits = inferer(val_inputs, wrapped_model)
 
                 val_probs = torch.sigmoid(val_logits)
                 val_bin = (val_probs > 0.5).float()
@@ -516,6 +533,22 @@ class PostTrainingVisualizer:
             EnsureTyped(keys=["mask"], dtype=torch.long)
         ])
 
+        from monai.inferers import SlidingWindowInferer
+        class ModelWrapper(torch.nn.Module):
+            def __init__(self, model):
+                super().__init__()
+                self.model = model
+            def forward(self, x):
+                out = self.model(x)
+                if isinstance(out, dict):
+                    return out.get("full", list(out.values())[-1])
+                if isinstance(out, (list, tuple)):
+                    return out[0]
+                return out
+                
+        wrapped_model = ModelWrapper(model)
+        inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
+        
         for category, patients in selected_cases.items():
             cat_dir = getattr(self, f"{category}_cases_dir")
             for patient_data in tqdm(patients, desc=f"Rendering {category}"):
@@ -536,23 +569,19 @@ class PostTrainingVisualizer:
 
                 with torch.no_grad():
                     with torch.autocast(device_type="cuda", dtype=torch.float16):
-                        pred_logits = model(img_tensor)
-                        if isinstance(pred_logits, dict):
-                            pred_logits = pred_logits.get("full", list(pred_logits.values())[-1])
-                        elif isinstance(pred_logits, (list, tuple)):
-                            pred_logits = pred_logits[0]
+                        pred_logits = inferer(img_tensor, wrapped_model)
                     pred_prob = torch.sigmoid(pred_logits)[0, 0].cpu().numpy()
                     pred_bin = (pred_prob > 0.5).astype(np.float32)
 
                 img_np = img_tensor[0, 0].cpu().numpy()
                 mask_np = mask_tensor[0, 0].cpu().numpy()
 
-                render_case_montage(pid, patient_data, img_np, mask_np, pred_bin, cat_dir / f"{pid}_montage.pdf")
+                render_case_montage(pid, patient_data, img_np, mask_np, pred_bin, self.pdfs_dir / f"{pid}_montage.pdf")
 
                 try:
                     if pred_bin.sum() > 0:
                         verts, faces, normals, values = measure.marching_cubes(pred_bin, level=0.5)
-                        obj_path = cat_dir / f"{pid}_3D_Pred.obj"
+                        obj_path = self.nifti_dir / f"{pid}_3D_Pred.obj"
                         with open(obj_path, 'w') as f:
                             f.write(f"# 3D Mask for {pid}\n")
                             for v in verts:
@@ -562,7 +591,7 @@ class PostTrainingVisualizer:
                         
                         # Save NIfTI for 3D Slicer
                         nii_out = nib.Nifti1Image(pred_bin.astype(np.int16), np.eye(4))
-                        nib.save(nii_out, cat_dir / f"{pid}_3D_Pred.nii.gz")
+                        nib.save(nii_out, self.nifti_dir / f"{pid}_3D_Pred.nii.gz")
                 except ValueError:
                     logger.warning(f"No surface found for {pid} to extract 3D mesh.")
 

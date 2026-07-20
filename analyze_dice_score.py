@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 import SimpleITK as sitk
 from typing import Dict, Any
+from monai.inferers import SlidingWindowInferer
 
 # Ensure we can import our modules
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -30,6 +31,21 @@ def analyze_predictions(model_name: str, checkpoint_path: str, image_path: str, 
         
     model.to(device)
     model.eval()
+    
+    class ModelWrapper(torch.nn.Module):
+        def __init__(self, model):
+            super().__init__()
+            self.model = model
+        def forward(self, x):
+            out = self.model(x)
+            if isinstance(out, dict):
+                return out.get("full", list(out.values())[-1])
+            if isinstance(out, (list, tuple)):
+                return out[0]
+            return out
+            
+    wrapped_model = ModelWrapper(model)
+    inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
     
     # 2. Load Checkpoint
     if os.path.exists(checkpoint_path):
@@ -71,11 +87,7 @@ def analyze_predictions(model_name: str, checkpoint_path: str, image_path: str, 
     # 4. Inference
     print("\n[4] Running Inference...")
     with torch.no_grad(), torch.autocast(device_type="cuda" if "cuda" in str(device) else "cpu", dtype=torch.bfloat16):
-        logits = model(img_tensor)
-        if isinstance(logits, dict):
-            logits = logits.get("full", list(logits.values())[-1])
-        elif isinstance(logits, (list, tuple)):
-            logits = logits[0]
+        logits = inferer(img_tensor, wrapped_model)
             
     # Ensure float32 for metric calculation
     logits = logits.float()
