@@ -99,10 +99,12 @@ class ResearchFrameworkCallback(TrainerCallback):
         metric_table.add_row("Loss (Total)", f"{self.current_train_loss:.4f}", f"{self.val_metrics.get('val_loss_total', self.val_metrics.get('val_loss', 0.0)):.4f}")
         metric_table.add_row("  ↳ Dice (unweighted)", f"{self.train_metrics.get('train_loss_dice', 0.0):.4f}", f"{self.val_metrics.get('val_loss_dice', 0.0):.4f}")
         metric_table.add_row("  ↳ Focal (unweighted)", f"{self.train_metrics.get('train_loss_focal', 0.0):.4f}", f"{self.val_metrics.get('val_loss_focal', 0.0):.4f}")
-        metric_table.add_row("  ↳ Boundary (unweighted)", f"{self.train_metrics.get('train_loss_boundary', 0.0):.4f}", f"{self.val_metrics.get('val_loss_boundary', 0.0):.4f}")
+        metric_table.add_row("  ↳ Tversky (unwgh)", f"{self.train_metrics.get('train_loss_tversky', 0.0):.4f}", f"{self.val_metrics.get('val_loss_tversky', 0.0):.4f}")
+        metric_table.add_row("  ↳ Boundary (unwgh)", f"{self.train_metrics.get('train_loss_boundary', 0.0):.4f}", f"{self.val_metrics.get('val_loss_boundary', 0.0):.4f}")
         
         metric_table.add_row("Weight: Dice", f"{self.train_metrics.get('train_loss_weight_dice', 0.0):.4f}", "-")
         metric_table.add_row("Weight: Focal", f"{self.train_metrics.get('train_loss_weight_focal', 0.0):.4f}", "-")
+        metric_table.add_row("Weight: Tversky", f"{self.train_metrics.get('train_loss_weight_tversky', 0.0):.4f}", "-")
         metric_table.add_row("Weight: Boundary", f"{self.train_metrics.get('train_loss_weight_boundary', 0.0):.4f}", "-")
         
         metric_table.add_row("Dice", "-", f"{self.val_metrics.get('val_dice', 0.0):.4f}")
@@ -237,9 +239,9 @@ class ResearchFrameworkCallback(TrainerCallback):
             
         # 2. Prediction Analysis & Validation Metrics (Phase 5, 2)
         try:
-            metrics = self.metric_engine.compute(mode="val")
-            log_dict.update(metrics)
-            self.val_metrics = metrics
+            # We don't call compute(mode="val") here because trainer.py already called it. 
+            # Calling it again clears the buffers, resulting in 0.0000 on the dashboard.
+            self.val_metrics = {k: v for k, v in log_dict.items()}
         except Exception as e:
             logger.error(f"Metric engine validation compute failed: {e}", exc_info=True)
             
