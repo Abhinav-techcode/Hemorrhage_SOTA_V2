@@ -36,7 +36,8 @@ class GRN(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         # L2 norm across spatial dimensions, using fused vector_norm to prevent OOM
-        Gx = torch.linalg.vector_norm(x, ord=2, dim=(2, 3, 4), keepdim=True)
+        # Force float32 to prevent overflow in float16/bfloat16 mixed precision
+        Gx = torch.linalg.vector_norm(x.to(torch.float32), ord=2, dim=(2, 3, 4), keepdim=True).to(x.dtype)
         Nx = Gx / (Gx.mean(dim=1, keepdim=True) + 1e-6)
         return self.gamma * (x * Nx) + self.beta + x
 
