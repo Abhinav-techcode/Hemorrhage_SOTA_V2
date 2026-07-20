@@ -111,7 +111,7 @@ class SegmentationTrainer:
             masks = masks.as_tensor()
             
         images = images.to(self.device, non_blocking=True, memory_format=mem_format)
-        masks = masks.to(self.device, non_blocking=True)
+        masks = masks.to(self.device, dtype=torch.float32, non_blocking=True)
         
         if self.current_epoch == 1 and batch_idx == 0:
             logger.info(f"Epoch 1, Batch 1 initialized. Input shape: {images.shape}, Mask shape: {masks.shape}")
@@ -175,7 +175,7 @@ class SegmentationTrainer:
             masks = masks.as_tensor()
             
         images = images.to(self.device, non_blocking=True)
-        masks = masks.to(self.device, non_blocking=True)
+        masks = masks.to(self.device, dtype=torch.float32, non_blocking=True)
         Validator.validate_input(images, masks)
         
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
@@ -235,7 +235,7 @@ class SegmentationTrainer:
         if hasattr(images, "as_tensor"): images = images.as_tensor()
         if hasattr(masks, "as_tensor"): masks = masks.as_tensor()
         images = images.to(self.device, non_blocking=True)
-        masks = masks.to(self.device, non_blocking=True)
+        masks = masks.to(self.device, dtype=torch.float32, non_blocking=True)
         
         # 3. Forward Pass & Memory Usage & Mixed Precision
         # Removed torch.cuda.reset_peak_memory_stats(self.device) because it causes NVML_SUCCESS == r crash on MIG
