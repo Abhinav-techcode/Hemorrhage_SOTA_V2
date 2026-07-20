@@ -1,4 +1,4 @@
-name: "AdamW"
+name: AdamW
 params:
-  lr: 0.00005
+  lr: 0.0005
   weight_decay: 0.01
