@@ -382,7 +382,12 @@ class PostTrainingVisualizer:
         results = []
         with torch.no_grad():
             for i, batch in enumerate(tqdm(loader, desc="Inference")):
-                val_inputs, val_labels = batch["image"].to(self.device), batch["mask"].to(self.device)
+                val_inputs = batch["image"]
+                val_labels = batch["mask"]
+                if hasattr(val_inputs, "as_tensor"): val_inputs = val_inputs.as_tensor()
+                if hasattr(val_labels, "as_tensor"): val_labels = val_labels.as_tensor()
+                val_inputs = val_inputs.to(self.device)
+                val_labels = val_labels.to(self.device)
 
                 with torch.autocast(device_type="cuda", dtype=torch.float16):
                     val_logits = model(val_inputs)
@@ -520,8 +525,12 @@ class PostTrainingVisualizer:
                     logger.error(f"Failed to load image for {pid}: {e}")
                     continue
 
-                img_tensor = data["image"].unsqueeze(0).to(self.device)
-                mask_tensor = data["mask"].unsqueeze(0).to(self.device)
+                img_tensor = data["image"].unsqueeze(0)
+                mask_tensor = data["mask"].unsqueeze(0)
+                if hasattr(img_tensor, "as_tensor"): img_tensor = img_tensor.as_tensor()
+                if hasattr(mask_tensor, "as_tensor"): mask_tensor = mask_tensor.as_tensor()
+                img_tensor = img_tensor.to(self.device)
+                mask_tensor = mask_tensor.to(self.device)
 
                 with torch.no_grad():
                     with torch.autocast(device_type="cuda", dtype=torch.float16):
