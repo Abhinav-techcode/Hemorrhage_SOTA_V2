@@ -369,7 +369,6 @@ class PostTrainingVisualizer:
             LoadImaged(keys=["image", "mask"]),
             FixShapesd(keys=["image", "mask"]),
             Resized(keys=["image", "mask"], spatial_size=RESIZE_TARGET, mode=("trilinear", "nearest")),
-            ScaleIntensityd(keys=["image"]),
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long)
         ])
@@ -506,7 +505,6 @@ class PostTrainingVisualizer:
             LoadImaged(keys=["image", "mask"]),
             FixShapesVizd(keys=["image", "mask"]),
             Resized(keys=["image", "mask"], spatial_size=(256, 256, 64), mode=("trilinear", "nearest")),
-            ScaleIntensityd(keys=["image"]),
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long)
         ])
