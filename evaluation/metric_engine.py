@@ -75,9 +75,9 @@ class ResearchMetricEngine:
         
     def _extract_highest_res(self, preds: Any) -> torch.Tensor:
         if isinstance(preds, dict):
-            return preds.get("full", list(preds.values())[-1])
+            return preds.get("full", list(preds.values())[0])
         if isinstance(preds, (list, tuple)):
-            return preds[-1]
+            return preds[0]
         return preds
         
     @torch.no_grad()

@@ -5,12 +5,17 @@ loss:
   dice:
     enabled: true
     weight: 1.0
-    params: { sigmoid: true }
+    params: { sigmoid: true, squared_pred: true }
   
   focal:
-    enabled: true
+    enabled: false
     weight: 0.4
     params: { gamma: 2.0 }
+    
+  tversky:
+    enabled: true
+    weight: 1.0
+    params: { sigmoid: true, alpha: 0.7, beta: 0.3 }
     
   boundary:
     enabled: true
