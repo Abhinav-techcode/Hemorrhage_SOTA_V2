@@ -238,8 +238,9 @@ class SegmentationTrainer:
         masks = masks.to(self.device, non_blocking=True)
         
         # 3. Forward Pass & Memory Usage & Mixed Precision
+        # Removed torch.cuda.reset_peak_memory_stats(self.device) because it causes NVML_SUCCESS == r crash on MIG
         if "cuda" in self.device_type:
-            torch.cuda.reset_peak_memory_stats(self.device)
+            pass
         amp_ctx = torch.autocast(self.device_type, dtype=self.amp_dtype) if getattr(self.config, "mixed_precision", False) else nullcontext()
         with amp_ctx:
             outputs = self.model(images)
@@ -269,8 +270,10 @@ class SegmentationTrainer:
             loss_dict = self.loss_fn(outputs, masks)
             loss = loss_dict["total"]
         
-        mem_alloc = torch.cuda.max_memory_allocated(self.device) / (1024**3) if "cuda" in self.device_type else 0.0
-        logger.info(f"Peak Memory after Forward: {mem_alloc:.2f} GB")
+        # Memory stats commented out due to PyTorch MIG NVML bug
+        # mem_alloc = torch.cuda.max_memory_allocated(self.device) / (1024**3) if "cuda" in self.device_type else 0.0
+        # logger.info(f"Peak Memory after Forward: {mem_alloc:.2f} GB")
+        logger.info("Forward pass completed successfully.")
         
         # 4. Backward Pass & Gradient Flow
         self.optimizer.zero_grad(set_to_none=True)
