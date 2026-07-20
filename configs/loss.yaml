@@ -13,8 +13,8 @@ loss:
     params: { gamma: 2.0 }
     
   boundary:
-    enabled: false
-    weight: 1.0
+    enabled: true
+    weight: 0.5
     params: {}
 
 deep_supervision:

@@ -1,8 +1,8 @@
-experiment_name: "ConvNeXtV2_UMamba_2Epochs_Test"
+experiment_name: "ConvNeXtV2_UMamba_50Epochs"
 fold: 0
 seed: 42
 deterministic: true
-epochs: 2
+epochs: 50
 batch_size: 1
 num_workers: 0
 patience: 30

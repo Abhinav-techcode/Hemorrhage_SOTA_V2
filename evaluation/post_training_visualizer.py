@@ -17,6 +17,7 @@ import torch
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 import seaborn as sns
 import nibabel as nib
 from skimage import measure
@@ -294,6 +295,7 @@ class PostTrainingVisualizer:
         self._generate_visualizations(model, selected_cases)
         self._generate_qualitative_report(metrics_df, selected_cases)
         self._generate_publication_figures(metrics_df)
+        self._generate_pdf_report(metrics_df)
 
         logger.info("=" * 80)
         logger.info("Post-Training Visualization Pipeline Completed")
@@ -747,6 +749,84 @@ class PostTrainingVisualizer:
             plt.tight_layout()
             plt.savefig(self.summary_dir / "Figure_7_Correlation_Heatmap.pdf", dpi=300)
             plt.close()
+
+    def _generate_pdf_report(self, df: pd.DataFrame):
+        """Generate a dedicated PDF evaluation report of all metrics with Strengths and Weaknesses."""
+        logger.info("Generating PDF Evaluation Report...")
+        report_path = self.reports_dir / "Evaluation_Metrics_Analysis.pdf"
+        
+        with PdfPages(report_path) as pdf:
+            fig, ax = plt.subplots(figsize=(8.5, 11))
+            ax.axis('off')
+            
+            plt.text(0.5, 0.95, 'Scientific Evaluation Report', fontsize=18, weight='bold', ha='center', va='top')
+            plt.text(0.5, 0.91, 'Quantitative Metrics & Automated Diagnosis', fontsize=12, ha='center', va='top')
+            
+            y_pos = 0.85
+            plt.text(0.05, y_pos, '1. Core Metrics Summary', fontsize=14, weight='bold')
+            y_pos -= 0.04
+            
+            if len(df) > 0:
+                dice_mean, dice_std = df['Dice'].mean(), df['Dice'].std()
+                iou_mean, iou_std = df['IoU'].mean(), df['IoU'].std()
+                prec_mean, rec_mean = df['Precision'].mean(), df['Recall'].mean()
+                
+                metrics_text = (
+                    f"Dice Score: {dice_mean:.4f} ± {dice_std:.4f}\n"
+                    f"IoU: {iou_mean:.4f} ± {iou_std:.4f}\n"
+                    f"Precision: {prec_mean:.4f} | Recall: {rec_mean:.4f}\n"
+                )
+                if 'HD95_mm' in df.columns:
+                    metrics_text += f"HD95 (mm): {df['HD95_mm'].mean():.2f} ± {df['HD95_mm'].std():.2f}\n"
+                    metrics_text += f"ASSD (mm): {df['ASSD_mm'].mean():.2f} ± {df['ASSD_mm'].std():.2f}\n"
+            else:
+                metrics_text = "No metrics available."
+                
+            plt.text(0.05, y_pos, metrics_text, fontsize=11, va='top')
+            y_pos -= 0.15
+            
+            plt.text(0.05, y_pos, '2. Model Strengths', fontsize=14, weight='bold')
+            y_pos -= 0.04
+            
+            strengths = []
+            if df['Dice'].mean() > 0.70:
+                strengths.append("✓ Strong segmentation overlap (Dice > 0.70).")
+            if df['Recall'].mean() > df['Precision'].mean() + 0.05:
+                strengths.append("✓ High sensitivity/recall, minimizing missed hemorrhages.")
+            if 'Lesion_Sensitivity' in df.columns and df['Lesion_Sensitivity'].mean() > 0.8:
+                strengths.append("✓ High lesion-wise detection rate.")
+            if 'ECE' in df.columns and df['ECE'].mean() < 0.05:
+                strengths.append("✓ Well-calibrated confidence probabilities.")
+                
+            if not strengths: strengths.append("- Needs more training epochs to develop strengths.")
+            
+            for s in strengths:
+                plt.text(0.05, y_pos, s, fontsize=11, va='top', color='green')
+                y_pos -= 0.03
+                
+            y_pos -= 0.02
+            plt.text(0.05, y_pos, '3. Model Weaknesses', fontsize=14, weight='bold')
+            y_pos -= 0.04
+            
+            weaknesses = []
+            if df['Precision'].mean() < df['Recall'].mean() - 0.1:
+                weaknesses.append("✗ Systematic over-segmentation (Precision significantly lower than Recall).")
+            if df['Dice'].mean() < 0.60:
+                weaknesses.append("✗ Overall segmentation quality is low; requires further convergence.")
+            if 'HD95_mm' in df.columns and df['HD95_mm'].mean() > 10.0:
+                weaknesses.append("✗ High boundary error (HD95 > 10mm). Edge delineation is imprecise.")
+            
+            if not weaknesses: weaknesses.append("- No major systematic weaknesses detected.")
+            
+            for w in weaknesses:
+                plt.text(0.05, y_pos, w, fontsize=11, va='top', color='red')
+                y_pos -= 0.03
+            
+            y_pos -= 0.05
+            plt.text(0.05, y_pos, f"Evaluated on {len(df)} validation cases.", style='italic', fontsize=10)
+            
+            pdf.savefig(fig)
+            plt.close(fig)
 
 def trigger_visualization_pipeline(exp_dir: str | Path, config: dict, limit_cases=None):
     """Wrapper function to be called from train.py"""
