@@ -45,7 +45,7 @@ def analyze_predictions(model_name: str, checkpoint_path: str, image_path: str, 
             return out
             
     wrapped_model = ModelWrapper(model)
-    inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
+    inferer = SlidingWindowInferer(roi_size=(64, 160, 160), sw_batch_size=4, overlap=0.25)
     
     # 2. Load Checkpoint
     if os.path.exists(checkpoint_path):

@@ -360,15 +360,17 @@ class PostTrainingVisualizer:
                 if img.ndim == 5 and img.shape[3] == 1:
                     img = img.squeeze(3)
                 if img.ndim == 4:
-                    img = img.permute(3, 0, 1, 2)
+                    img = img.permute(3, 2, 0, 1)
                 d["image"] = img
                 mask = d["mask"]
                 if mask.ndim == 3:
                     mask = mask.unsqueeze(0)
+                elif mask.ndim == 4:
+                    mask = mask.permute(3, 2, 0, 1)
                 d["mask"] = mask
                 return d
 
-        RESIZE_TARGET = (256, 256, 64)
+        RESIZE_TARGET = (64, 256, 256)
 
         val_transforms = Compose([
             LoadImaged(keys=["image", "mask"]),
@@ -399,7 +401,7 @@ class PostTrainingVisualizer:
                 return out
                 
         wrapped_model = ModelWrapper(model)
-        inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
+        inferer = SlidingWindowInferer(roi_size=(64, 160, 160), sw_batch_size=4, overlap=0.25)
         
         results = []
         with torch.no_grad():
@@ -528,7 +530,7 @@ class PostTrainingVisualizer:
         viz_transforms = Compose([
             LoadImaged(keys=["image", "mask"]),
             FixShapesVizd(keys=["image", "mask"]),
-            Resized(keys=["image", "mask"], spatial_size=(256, 256, 64), mode=("trilinear", "nearest")),
+            Resized(keys=["image", "mask"], spatial_size=(64, 256, 256), mode=("trilinear", "nearest")),
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long)
         ])
@@ -547,7 +549,7 @@ class PostTrainingVisualizer:
                 return out
                 
         wrapped_model = ModelWrapper(model)
-        inferer = SlidingWindowInferer(roi_size=(64, 256, 256), sw_batch_size=4, overlap=0.25)
+        inferer = SlidingWindowInferer(roi_size=(64, 160, 160), sw_batch_size=4, overlap=0.25)
         
         for category, patients in selected_cases.items():
             cat_dir = getattr(self, f"{category}_cases_dir")
