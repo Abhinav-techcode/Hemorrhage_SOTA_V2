@@ -91,6 +91,17 @@ class ResearchMetricEngine:
             
             y_probs = torch.sigmoid(y_logits)
             y_preds_bin = (y_probs >= 0.5).float()
+            
+            # Post-processing: Lesion size threshold (min 50 voxels) to improve generalization
+            import skimage.morphology as morph
+            import numpy as np
+            y_preds_np = y_preds_bin.cpu().numpy()
+            for b in range(y_preds_np.shape[0]):
+                for c in range(y_preds_np.shape[1]):
+                    y_preds_np[b, c] = morph.remove_small_objects(
+                        y_preds_np[b, c].astype(bool), min_size=50
+                    ).astype(np.float32)
+            y_preds_bin = torch.from_numpy(y_preds_np).to(y_probs.device)
             y_true_bin = (y_true >= 0.5).float()
             
             y_preds_bin_list = [y_preds_bin[i:i+1] for i in range(y_preds_bin.shape[0])]

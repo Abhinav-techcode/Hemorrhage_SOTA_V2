@@ -167,15 +167,15 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
     color_fp = np.array([0.91, 0.30, 0.24])
     color_fn = np.array([0.95, 0.61, 0.07])
 
-    z_slice = np.argmax(mask_np.sum(axis=(0, 1))) if mask_np.sum() > 0 else img_np.shape[2] // 2
-    z_top = min(z_slice + 3, img_np.shape[2] - 1)
+    z_slice = np.argmax(mask_np.sum(axis=(1, 2))) if mask_np.sum() > 0 else img_np.shape[0] // 2
+    z_top = min(z_slice + 3, img_np.shape[0] - 1)
     z_bot = max(z_slice - 3, 0)
     slices = [(z_top, "Axial (+3)"), (z_slice, "Axial (Center)"), (z_bot, "Axial (-3)")]
 
     for row, (slc, name) in enumerate(slices):
-        img_s = img_np[:, :, slc].T
-        gt_s = mask_np[:, :, slc].T
-        pred_s = pred_bin[:, :, slc].T
+        img_s = img_np[slc, :, :]
+        gt_s = mask_np[slc, :, :]
+        pred_s = pred_bin[slc, :, :]
         rgb_base = to_rgb_base(img_s)
 
         axes[row, 0].imshow(rgb_base, origin="lower")
@@ -187,15 +187,9 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
         axes[row, 1].set_title(f"{name} Ground Truth")
         axes[row, 1].axis('off')
 
-        eval_rgb = rgb_base.copy()
-        tp_mask = (pred_s == 1) & (gt_s == 1)
-        fp_mask = (pred_s == 1) & (gt_s == 0)
-        fn_mask = (pred_s == 0) & (gt_s == 1)
-        eval_rgb[tp_mask] = eval_rgb[tp_mask] * 0.4 + color_tp * 0.6
-        eval_rgb[fp_mask] = eval_rgb[fp_mask] * 0.4 + color_fp * 0.6
-        eval_rgb[fn_mask] = eval_rgb[fn_mask] * 0.4 + color_fn * 0.6
-        axes[row, 2].imshow(eval_rgb, origin="lower")
-        axes[row, 2].set_title(f"{name} Eval Composite")
+        pred_overlay = mark_boundaries(rgb_base, pred_s.astype(int), color=(1, 0, 0), mode='thick')
+        axes[row, 2].imshow(pred_overlay, origin="lower")
+        axes[row, 2].set_title(f"{name} Prediction")
         axes[row, 2].axis('off')
 
         axes[row, 3].axis('off')
@@ -231,9 +225,7 @@ def render_case_montage(pid, metrics, img_np, mask_np, pred_bin, save_path):
                                transform=axes[row, 3].transAxes, wrap=True)
 
             legend_elements = [
-                mpatches.Patch(color=color_tp, label='True Positive'),
-                mpatches.Patch(color=color_fp, label='False Positive'),
-                mpatches.Patch(color=color_fn, label='False Negative'),
+                mpatches.Patch(facecolor='none', edgecolor=(1, 0, 0), linewidth=2, label='Prediction'),
                 mpatches.Patch(facecolor='none', edgecolor=(0, 1, 1), linewidth=2, label='Ground Truth'),
             ]
             axes[row, 3].legend(handles=legend_elements, loc='lower left', fontsize=10,

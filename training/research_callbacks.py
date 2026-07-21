@@ -163,6 +163,38 @@ class ResearchFrameworkCallback(TrainerCallback):
         if getattr(self, "live", None) is not None:
             self.live.stop()
             
+        # Plot curves
+        try:
+            import matplotlib.pyplot as plt
+            epochs = [h.get("epoch", i+1) for i, h in enumerate(self.history)]
+            train_loss = [h.get("train_loss", 0) for h in self.history]
+            val_loss = [h.get("val_loss", 0) for h in self.history]
+            val_dice = [h.get("val_dice", 0) for h in self.history]
+            
+            plt.figure(figsize=(10, 5))
+            plt.plot(epochs, train_loss, label="Train Loss")
+            plt.plot(epochs, val_loss, label="Val Loss")
+            plt.title("Loss Curve")
+            plt.xlabel("Epoch")
+            plt.ylabel("Loss")
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(self.save_dir / "loss_curve.png")
+            plt.close()
+            
+            plt.figure(figsize=(10, 5))
+            plt.plot(epochs, val_dice, label="Val Dice", color="green")
+            plt.title("Dice Curve")
+            plt.xlabel("Epoch")
+            plt.ylabel("Dice")
+            plt.legend()
+            plt.grid(True)
+            plt.savefig(self.save_dir / "dice_curve.png")
+            plt.close()
+            logger.info("Saved loss_curve.png and dice_curve.png")
+        except Exception as e:
+            logger.error(f"Failed to plot curves: {e}")
+
         # Phase 10: Automatic Post-Training Qualitative Visualization
         logger.info("Generating Final Post-Training Visualizations...")
         if hasattr(trainer, '_vis_batch') and trainer._vis_batch is not None:
