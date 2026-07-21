@@ -1,4 +1,4 @@
-overwrite_existing: false
+overwrite_existing: true
 apply_histogram_matching: false
 fill_holes: true
 geometry_atol: 0.0001
