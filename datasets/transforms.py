@@ -42,6 +42,7 @@ from monai.transforms import (
     CenterSpatialCropd,
     Rand3DElasticd,
     RandCoarseDropoutd,
+    Lambdad,
 )
 
 class SinglePosNegCropd:
@@ -307,6 +308,7 @@ class TransformFactory:
 
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long),
+            Lambdad(keys=["image"], func=lambda x: x[1:2, ...] if x.shape[0] == 3 else x),
             CropForegroundd(keys=["image", "mask"], source_key="image"),
             SpatialPadd(keys=["image", "mask"], spatial_size=roi_size),
             SinglePosNegCropd(
@@ -387,6 +389,7 @@ class TransformFactory:
         return Compose([
             EnsureTyped(keys=["image"], dtype=torch.float32),
             EnsureTyped(keys=["mask"], dtype=torch.long),
+            Lambdad(keys=["image"], func=lambda x: x[1:2, ...] if x.shape[0] == 3 else x),
             CropForegroundd(keys=["image", "mask"], source_key="image"),
             SpatialPadd(keys=["image", "mask"], spatial_size=roi_size),
             CenterSpatialCropd(keys=["image", "mask"], roi_size=roi_size),
@@ -395,7 +398,7 @@ class TransformFactory:
     def validate_pipeline(pipeline: Compose, sample_shape: tuple = (64, 256, 256)) -> None:
         """Runs a mock tensor through the pipeline to ensure constraints hold."""
         dummy_data = {
-            "image": torch.rand(3, *sample_shape, dtype=torch.float32),
+            "image": torch.rand(1, *sample_shape, dtype=torch.float32),
             "mask": torch.randint(0, 2, (1, *sample_shape), dtype=torch.long),
             "metadata": {"case": "test"}
         }
