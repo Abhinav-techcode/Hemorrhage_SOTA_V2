@@ -1,5 +1,5 @@
 # Loss Ablation Framework
-weighting_strategy: "static"  # 'static', 'learnable', 'uncertainty'
+weighting_strategy: "learnable"  # 'static', 'learnable', 'uncertainty'
 
 loss:
   dice:
@@ -8,12 +8,12 @@ loss:
     params: { sigmoid: true, squared_pred: true }
   
   focal:
-    enabled: true
+    enabled: false
     weight: 1.0
     params: { gamma: 2.0, alpha: 0.75 }
     
   tversky:
-    enabled: false
+    enabled: true
     weight: 1.0
     params: { sigmoid: true, alpha: 0.7, beta: 0.3 }
     
