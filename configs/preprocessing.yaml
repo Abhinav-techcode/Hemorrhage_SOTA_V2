@@ -1,9 +1,10 @@
+overwrite_existing: false
 apply_histogram_matching: false
 fill_holes: true
 geometry_atol: 0.0001
 histogram_reference_path: null
 min_component_size: 100
-multi_window: true
+multi_window: false
 normalization: minmax
 num_workers: 0
 orientation: RAS

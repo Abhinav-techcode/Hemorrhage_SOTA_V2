@@ -106,7 +106,7 @@ np.random.seed(SEED)
 # PROJECT PATHS
 # =====================================================================
 
-PROJECT_ROOT = Path("/workspace/Hemorrhage_SOTA_V2")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATASET_ROOT = PROJECT_ROOT / "dataset"
 MASTER_DATASET = DATASET_ROOT / "Merged_Dataset"
 IMAGE_DIR = MASTER_DATASET / "images"
@@ -953,7 +953,16 @@ def process_dataset() -> None:
 
     # --- Execution ---
     futures = []
-    with ProcessPoolExecutor(max_workers=opt_workers) as executor:
+    
+    # In Python 3.11+, we can use max_tasks_per_child to prevent C++/Matplotlib memory leaks 
+    # from crashing the worker process over hundreds of iterations.
+    try:
+        executor = ProcessPoolExecutor(max_workers=opt_workers, max_tasks_per_child=10)
+    except TypeError:
+        # Fallback for Python < 3.11
+        executor = ProcessPoolExecutor(max_workers=opt_workers)
+        
+    with executor:
         for img_path, msk_path in tasks_to_submit:
             futures.append(executor.submit(process_single_case, img_path, msk_path))
             
