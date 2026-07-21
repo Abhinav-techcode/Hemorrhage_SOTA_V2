@@ -1026,6 +1026,10 @@ def run_pipeline() -> None:
     """Entry point for the preprocessing pipeline."""
     process_dataset()
     logger.info("Entire preprocessing pipeline completed.")
+    logger.info("Zipping the processed directory into process2.zip for Colab upload...")
+    import shutil
+    shutil.make_archive("process2", 'zip', "processed")
+    logger.info("Zipping complete! process2.zip is ready.")
 
 def main() -> None:
     """Main function."""
